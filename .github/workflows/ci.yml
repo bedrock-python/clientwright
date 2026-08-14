@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint & type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --group dev --all-extras
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run mypy clientwright
+      - run: uv run lint-imports
+
+  # The core must stay importable and useful without a single extra installed:
+  # bare install is a working install.
+  test-core-only:
+    name: Core without extras
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --group test
+      - name: Capabilities matrix builds without extras
+        run: |
+          uv run python -c "
+          import clientwright
+          matrix = clientwright.capabilities_matrix()
+          assert matrix, 'capabilities_matrix() must not be empty without extras'
+          print(sorted(matrix))
+          "
+      - run: uv run pytest -m unit --no-cov -p no:cacheprovider
+
+  test-unit:
+    name: Unit tests (Python ${{ matrix.python-version }})
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: uv sync --group dev --all-extras
+      - run: uv run pytest -m unit --cov=clientwright --cov-report=xml --cov-fail-under=90  # unit-only floor; `make test` gates the full suite at 97
+      - uses: codecov/codecov-action@v6
+        if: matrix.python-version == '3.12'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+        continue-on-error: true
+
+  test-integration:
+    name: Integration tests
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --group dev --all-extras
+      # No exit-code-5 amnesty: "collected 0 items" would mean the marker wiring
+      # broke, and a green run with nothing executed is the failure mode this
+      # job exists to catch.
+      - name: Run integration tests
+        run: uv run pytest -m integration
+
+  # The sync stack in isolation: requests physically sits on urllib3, so this
+  # job proves the pair coexists (suppression, no double accounting) without
+  # the async extras present.
+  test-requests-stack:
+    name: requests + urllib3 stack
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --group dev --extra requests --extra urllib3
+      - run: uv run pytest tests/unit/adapters/requests tests/unit/adapters/urllib3 --no-cov
+      - name: Run sync-stack integration tests
+        run: uv run pytest -m integration tests/integration/adapters/test_requests.py tests/integration/adapters/test_urllib3.py
+
+  # Real third-party endpoints. Never gates a merge: it is manual-only, because
+  # someone else's uptime must not be able to turn this repository red.
+  live:
+    name: Live endpoints (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --group dev --all-extras
+      - run: uv run pytest tests/live --live --no-cov
+
+  # Sentinel job — use this as the single required status check in branch protection.
+  all-checks-passed:
+    name: All checks passed
+    if: always()
+    needs: [lint, test-core-only, test-unit, test-integration, test-requests-stack]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs succeeded
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more required checks failed."
+            exit 1
+          fi
+          echo "All checks passed."
