@@ -55,7 +55,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: uv sync --group dev --all-extras
       - run: uv run pytest -m unit --cov=clientwright --cov-report=xml --cov-fail-under=90  # unit-only floor; `make test` gates the full suite at 97
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         if: matrix.python-version == '3.12'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
