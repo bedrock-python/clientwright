@@ -1,9 +1,11 @@
 # clientwright
 
-[![CI](https://github.com/bedrock-python/clientwright/actions/workflows/ci.yml/badge.svg)](https://github.com/bedrock-python/clientwright/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/clientwright.svg)](https://pypi.org/project/clientwright/)
-[![Python](https://img.shields.io/pypi/pyversions/clientwright.svg)](https://pypi.org/project/clientwright/)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/clientwright?color=blue)](https://pypi.org/project/clientwright/)
+[![Python](https://img.shields.io/pypi/pyversions/clientwright)](https://pypi.org/project/clientwright/)
+[![License](https://img.shields.io/github/license/bedrock-python/clientwright)](LICENSE)
+[![CI](https://github.com/bedrock-python/clientwright/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/bedrock-python/clientwright/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/bedrock-python/clientwright/graph/badge.svg)](https://codecov.io/gh/bedrock-python/clientwright)
+[![Docs](https://img.shields.io/badge/docs-online-blue)](https://bedrock-python.github.io/clientwright/)
 
 One resilience and observability core, many HTTP clients.
 

@@ -8,8 +8,8 @@ import ssl
 import pytest
 
 requests = pytest.importorskip("requests", reason="requires the [requests] extra")
-
-import urllib3  # noqa: E402
+# requests sits on urllib3, and these tests reach for its exception types directly.
+urllib3 = pytest.importorskip("urllib3", reason="requires the [requests] extra")
 
 import clientwright  # noqa: E402
 from clientwright.adapters.requests import (  # noqa: E402

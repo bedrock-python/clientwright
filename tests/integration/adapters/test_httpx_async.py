@@ -4,21 +4,22 @@ from __future__ import annotations
 
 import asyncio
 
-import httpx
 import pytest
 
-import clientwright
-from clientwright import AdapterDeps, ClientConfig, RetryConfig, TimeoutConfig
-from clientwright.adapters.httpx import (
+httpx = pytest.importorskip("httpx", reason="requires the [httpx] extra")
+
+import clientwright  # noqa: E402
+from clientwright import AdapterDeps, ClientConfig, RetryConfig, TimeoutConfig  # noqa: E402
+from clientwright.adapters.httpx import (  # noqa: E402
     IDEMPOTENT_EXTENSION,
     ROUTE_EXTENSION,
     HttpxCircuitOpenError,
     HttpxTooManyRedirectsError,
 )
-from clientwright.core.config import CircuitBreakerConfig
-from clientwright.core.testing import OriginServer, RecordingMetrics
+from clientwright.core.config import CircuitBreakerConfig  # noqa: E402
+from clientwright.core.testing import OriginServer, RecordingMetrics  # noqa: E402
 
-from ..conftest import base_config
+from ..conftest import base_config  # noqa: E402
 
 FAST_RETRY = RetryConfig(max_attempts=3, initial_backoff=0.01, jitter=0.0)
 
