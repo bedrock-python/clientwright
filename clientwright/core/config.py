@@ -15,9 +15,12 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 from .model import IDEMPOTENT_METHODS, CircuitKey, FailureKind
+
+if TYPE_CHECKING:
+    from .contracts.observability import MaskerProtocol
 
 
 class _Unset:
@@ -106,6 +109,9 @@ DEFAULT_TRIP_KINDS: Final = frozenset(
     }
 )
 
+# Not a config knob: clientwright never emits headers into logs or spans, so
+# there is nothing for a header list to protect. Kept as a public default for
+# services that log headers themselves via ``redact_headers``.
 DEFAULT_SENSITIVE_HEADERS: Final = frozenset(
     {
         "authorization",
@@ -261,14 +267,26 @@ _INFO_LEVEL: Final = logging.INFO
 
 @dataclass(frozen=True, slots=True)
 class ObservabilityConfig:
-    """Which telemetry channels are active; only knobs that actually work exist here."""
+    """Which telemetry channels are active; only knobs that actually work exist here.
+
+    Two-stage URL scrubbing before anything reaches a log line or a span:
+    ``sensitive_query_params`` redacts by parameter *name*, then ``url_masker``
+    (if set) sees the whole redacted URL and may scrub PII by *value* - the
+    email in a path segment that no name list can catch. See
+    :class:`~clientwright.core.contracts.observability.MaskerProtocol` for the
+    failure contract.
+    """
 
     logging: bool = True
     metrics: bool = True
     tracing: bool = True
     success_log_level: int = _INFO_LEVEL
-    sensitive_headers: frozenset[str] = DEFAULT_SENSITIVE_HEADERS
     sensitive_query_params: frozenset[str] = DEFAULT_SENSITIVE_QUERY_PARAMS
+    url_masker: MaskerProtocol | None = None
+
+    def __post_init__(self) -> None:
+        if self.url_masker is not None and not callable(self.url_masker):
+            raise ValueError(f"observability.url_masker must be callable or None, got {self.url_masker!r}")
 
 
 @dataclass(frozen=True, slots=True)

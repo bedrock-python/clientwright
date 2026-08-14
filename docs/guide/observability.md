@@ -81,8 +81,7 @@ integrate.
 
 URLs in logs and spans pass through a redactor before leaving the process.
 Values of sensitive query parameters (`token`, `code`, `client_secret`,
-`api_key`, ... ) become `[redacted]`; header capture honors a matching sensitive
-set (`Authorization`, `Cookie`, `X-API-Key`, ...). Both sets are extendable:
+`api_key`, ... ) become `[redacted]`, and the set is extendable:
 
 ```python
 from clientwright import ClientConfig, ObservabilityConfig
@@ -94,6 +93,11 @@ config = ClientConfig(
     ),
 )
 ```
+
+Headers never reach logs or spans at all — excluded by design, so there is no
+header list to maintain. Name-based redaction cannot catch PII sitting in a
+*path segment*; for that there is a value-level seam, `url_masker` — see
+[Masking PII](masking.md).
 
 ## Turning channels off
 

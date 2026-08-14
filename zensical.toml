@@ -26,6 +26,7 @@ nav = [
         { "Redirects" = "guide/redirects.md" },
         { "Per-call options" = "guide/per-call-options.md" },
         { "Observability" = "guide/observability.md" },
+        { "Masking PII" = "guide/masking.md" },
         { "Proxies and TLS" = "guide/proxies-tls.md" },
         { "Native passthrough" = "guide/native-options.md" },
         { "Capability honesty" = "guide/capabilities.md" },

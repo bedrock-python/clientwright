@@ -70,6 +70,24 @@ class ClientMetricsProtocol(Protocol):
 
 
 @runtime_checkable
+class MaskerProtocol(Protocol):
+    """Value-level masker applied to telemetry strings before they are emitted.
+
+    The key-based redaction (``sensitive_query_params``) runs first; the masker
+    then sees the whole string and may scrub PII that key lists cannot reach -
+    an email in a path segment, a card number in a free-form value. Any
+    ``(str) -> str`` callable qualifies: a regex substitution, a
+    format-preserving masker, a locally hosted NER model.
+
+    Contract: synchronous, and cheap enough to run 2-3 times per HTTP call.
+    A raising masker never breaks the request - the emitter replaces the whole
+    value with ``[redacted]`` (fail closed) and warns once per client.
+    """
+
+    def __call__(self, value: str) -> str: ...
+
+
+@runtime_checkable
 class SpanProtocol(Protocol):
     """One client span; ended exactly once, in a finally block."""
 
@@ -89,4 +107,4 @@ class TracerProtocol(Protocol):
     def inject_context(self, headers: MutableMapping[str, str]) -> None: ...
 
 
-__all__ = ["ClientMetricsProtocol", "SpanProtocol", "TracerProtocol"]
+__all__ = ["ClientMetricsProtocol", "MaskerProtocol", "SpanProtocol", "TracerProtocol"]

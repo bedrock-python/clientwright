@@ -9,6 +9,7 @@ from .message import RequestView as RequestView
 from .message import ResponseView as ResponseView
 from .message import SyncNormalizer as SyncNormalizer
 from .observability import ClientMetricsProtocol as ClientMetricsProtocol
+from .observability import MaskerProtocol as MaskerProtocol
 from .observability import SpanProtocol as SpanProtocol
 from .observability import TracerProtocol as TracerProtocol
 from .settings import CircuitBreakerSettingsProtocol as CircuitBreakerSettingsProtocol
@@ -24,6 +25,7 @@ __all__ = [
     "ClientSettingsProtocol",
     "DeadlineSource",
     "HeaderProvider",
+    "MaskerProtocol",
     "RequestView",
     "ResponseView",
     "RetrySettingsProtocol",

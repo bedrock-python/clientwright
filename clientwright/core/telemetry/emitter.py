@@ -15,7 +15,7 @@ from ..contracts.observability import ClientMetricsProtocol, SpanProtocol, Trace
 from ..model import Attempt, Outcome, RequestInfo
 from .names import OUTCOME_SUCCESS, ROUTE_UNKNOWN, STATUS_NONE
 from .null import NullMetrics, NullTracer
-from .redaction import redact_url
+from .redaction import REDACTED, redact_url
 
 
 def outcome_label(outcome: Outcome) -> str:
@@ -57,13 +57,26 @@ class ClientTelemetry:
         self._tracer: TracerProtocol = tracer if (tracer and config.tracing) else NullTracer()
         self._logger = logging.getLogger(f"clientwright.client.{service}")
         self._log_enabled = config.logging
+        self._masker_warned = False
 
     @property
     def tracer(self) -> TracerProtocol:
         return self._tracer
 
     def _safe_url(self, info: RequestInfo) -> str:
-        return redact_url(info.url, self._config.sensitive_query_params)
+        url = redact_url(info.url, self._config.sensitive_query_params)
+        masker = self._config.url_masker
+        if masker is None:
+            return url
+        # Fail closed: a broken masker must not publish the raw URL, and must
+        # not break the request either. Warn once per client, not per call.
+        try:
+            return masker(url)
+        except Exception:
+            if not self._masker_warned:
+                self._masker_warned = True
+                self._logger.warning("url_masker raised; emitting [redacted] instead of the URL", exc_info=True)
+            return REDACTED
 
     def call_start(self, info: RequestInfo, started: float) -> CallObservation:
         span = self._tracer.start_span(
