@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # uv, not pip: the project keeps a uv.lock and PEP 735 dependency groups,
+  # neither of which the pip ecosystem updates.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
