@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.1.0...clientwright-v0.2.0) (2026-08-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* add url_masker seam for value-level PII masking, drop dead sensitive_headers knob
+
+### Features
+
+* add url_masker seam for value-level PII masking, drop dead sensitive_headers knob ([90f74fb](https://github.com/bedrock-python/clientwright/commit/90f74fbecaafb77b2405c4d06804e3d7dad91b34))
+
 ## 0.1.0 (2026-08-14)
 
 
