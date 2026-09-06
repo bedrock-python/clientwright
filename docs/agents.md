@@ -276,10 +276,10 @@ remaining deadline → a token in the origin's budget. Refusals at the last four
 | `ProxyConfig` | `url=None`, `from_env=False` — mutually exclusive, `ValueError` if both are given |
 | `NativeOptions` | `NativeOptions.of(slot={...})`; `slots` is `{slot_name: {kwarg: value}}` |
 
-`DEFAULT_SENSITIVE_HEADERS` is exported but is not a config knob: clientwright never emits
-headers into a log line or a span, so there is nothing for it to protect here. It exists for
-services that log headers themselves, with
-`clientwright.core.telemetry.redaction.redact_headers`.
+`DEFAULT_SENSITIVE_HEADERS` is not a config knob: clientwright never emits headers into a
+log line or a span, so there is nothing for it to protect here. It exists for services that
+log headers themselves, and pairs with `redact_headers(headers, sensitive)` — both are root
+exports.
 
 ### Data model and enums
 
