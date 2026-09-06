@@ -24,6 +24,7 @@ class FailureKind(StrEnum):
     READ_TIMEOUT = "read_timeout"
     WRITE_TIMEOUT = "write_timeout"
     POOL_TIMEOUT = "pool_timeout"
+    ATTEMPT_TIMEOUT = "attempt_timeout"
     TOTAL_TIMEOUT = "total_timeout"
     CONNECT_ERROR = "connect_error"
     DNS_ERROR = "dns_error"

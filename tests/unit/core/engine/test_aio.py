@@ -18,7 +18,12 @@ from clientwright.core.config import (
     TimeoutConfig,
 )
 from clientwright.core.contracts.adapter import AdapterDeps
-from clientwright.core.errors import CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
+from clientwright.core.errors import (
+    AttemptTimeoutError,
+    CircuitOpenError,
+    DeadlineExceededError,
+    TooManyRedirectsError,
+)
 from clientwright.core.model import ConnMetrics, ResolvedTimeouts
 from clientwright.core.policy.circuit import CircuitState
 from clientwright.core.testing import ManualClock
@@ -27,6 +32,7 @@ from tests.helpers.engine import (
     FixedDeadlineSource,
     Harness,
     ScriptedSend,
+    Slow,
     as_async_send,
     fast_retry,
     make_config,
@@ -101,18 +107,38 @@ async def test__ambient_budget_pre_expired__raises_before_any_send() -> None:
     assert harness.call_outcomes == ["total_timeout"]
 
 
-async def test__attempt_timeout_with_budget_left__surfaces_the_native_error() -> None:
-    # The deadline clock is manual and never advances: the attempt timed out
-    # while the total budget still has room, so the SDK error must surface.
-    config = make_config(retry=None, timeout=TimeoutConfig(total=30.0, attempt=0.05))
+async def test__attempt_ceiling_with_budget_left__retried_then_attempt_timeout_error() -> None:
+    # The deadline clock is manual and never advances: every ceiling fires with
+    # the whole total still available, so each one is a retryable attempt.
+    config = make_config(timeout=TimeoutConfig(total=30.0, attempt=0.05))
     harness = Harness(config, clock=ManualClock())
+    stall = Slow(1.0, FakeResponse(200))
+    script = ScriptedSend(stall, stall, stall)
+    with pytest.raises(AttemptTimeoutError) as excinfo:
+        await harness.engine.run(EngineRequest(), as_async_send(script))
+    assert excinfo.value.attempt == 0.05
+    assert script.sent == 3
+    assert harness.attempt_outcomes == ["attempt_timeout"] * 3
+    assert harness.call_outcomes == ["attempt_timeout"]
 
-    async def timed_out_send(request: EngineRequest) -> FakeResponse:
-        raise TimeoutError("attempt ceiling")
 
-    with pytest.raises(TimeoutError):
-        await harness.engine.run(EngineRequest(), timed_out_send)
-    assert harness.call_outcomes == ["total_timeout"]  # classified, not swallowed
+async def test__attempt_ceiling_without_a_total__attempt_timeout_error() -> None:
+    config = make_config(retry=None, timeout=TimeoutConfig(total=None, attempt=0.05))
+    harness = Harness(config)
+    script = ScriptedSend(Slow(1.0, FakeResponse(200)))
+    with pytest.raises(AttemptTimeoutError):
+        await harness.engine.run(EngineRequest(), as_async_send(script))
+    assert harness.call_outcomes == ["attempt_timeout"]
+
+
+async def test__sdk_timeout_subclass__classified_by_the_adapter_not_as_the_ceiling() -> None:
+    # aiohttp's whole timeout family subclasses TimeoutError: without a fired
+    # ceiling the exception is the SDK's and keeps the adapter's classification.
+    harness = Harness(make_config(timeout=TimeoutConfig(total=30.0, attempt=5.0)))
+    script = ScriptedSend(TimeoutError("sock_read"), FakeResponse(200))
+    result = await harness.engine.run(EngineRequest(), as_async_send(script))
+    assert result.status_code == 200
+    assert harness.attempt_outcomes == ["read_timeout", "success"]  # the fake normalizer's mapping, retried
 
 
 async def test__total_deadline_exhausted_mid_attempt__deadline_error() -> None:
@@ -121,8 +147,9 @@ async def test__total_deadline_exhausted_mid_attempt__deadline_error() -> None:
     harness = Harness(config, clock=clock)
 
     async def stalled_send(request: EngineRequest) -> FakeResponse:
-        clock.advance(0.1)  # the attempt burned through the whole total budget
-        raise TimeoutError("attempt ceiling")
+        clock.advance(0.1)  # the attempt burns through the whole total budget...
+        await asyncio.sleep(1.0)  # ...and the ceiling, clamped to it, cuts the attempt
+        return FakeResponse(200)
 
     with pytest.raises(DeadlineExceededError):
         await harness.engine.run(EngineRequest(), stalled_send)
@@ -178,6 +205,17 @@ async def test__call_error_from_below__classified_and_trips_the_breaker() -> Non
     with pytest.raises(DeadlineExceededError):
         await harness.engine.run(EngineRequest(), as_async_send(script))
     assert harness.call_outcomes == ["total_timeout"]
+    with pytest.raises(CircuitOpenError):
+        await harness.engine.run(EngineRequest(), as_async_send(ScriptedSend()))
+
+
+async def test__attempt_timeout_error_from_below__classified_and_trips_the_breaker() -> None:
+    config = make_config(retry=None, circuit_breaker=_breaker_config())
+    harness = Harness(config)
+    script = ScriptedSend(AttemptTimeoutError(0.5))
+    with pytest.raises(AttemptTimeoutError):
+        await harness.engine.run(EngineRequest(), as_async_send(script))
+    assert harness.call_outcomes == ["attempt_timeout"]
     with pytest.raises(CircuitOpenError):
         await harness.engine.run(EngineRequest(), as_async_send(ScriptedSend()))
 

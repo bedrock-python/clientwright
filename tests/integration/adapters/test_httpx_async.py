@@ -14,6 +14,7 @@ from clientwright.adapters.httpx import (  # noqa: E402
     IDEMPOTENT_EXTENSION,
     ROUTE_EXTENSION,
     HttpxCircuitOpenError,
+    HttpxDeadlineExceededError,
     HttpxTooManyRedirectsError,
 )
 from clientwright.core.config import CircuitBreakerConfig  # noqa: E402
@@ -163,6 +164,23 @@ async def test__slow_body__total_deadline_cancels_and_translates(origin: OriginS
     client = await build(config, deps)
     with pytest.raises(httpx.TimeoutException):
         await client.get("/slow/3")
+    await client.aclose()
+
+
+async def test__attempt_ceiling_inside_the_total__retried_until_the_deadline(
+    origin: OriginServer, metrics: RecordingMetrics, deps: AdapterDeps
+) -> None:
+    config = base_config(origin, timeout=TimeoutConfig(total=1.0, attempt=0.4), retry=FAST_RETRY)
+    client = await build(config, deps)
+    started = asyncio.get_running_loop().time()
+    with pytest.raises(httpx.TimeoutException) as excinfo:
+        await client.get("/slow/3")
+    elapsed = asyncio.get_running_loop().time() - started
+    assert isinstance(excinfo.value, HttpxDeadlineExceededError)  # the third ceiling is clamped to what is left
+    assert 0.9 < elapsed < 1.5
+    assert origin.request_count("/slow/3") == 3
+    assert [record["outcome"] for record in metrics.attempts] == ["attempt_timeout", "attempt_timeout", "total_timeout"]
+    assert metrics.calls[0]["outcome"] == "total_timeout"
     await client.aclose()
 
 

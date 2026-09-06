@@ -55,12 +55,17 @@ CAPABILITIES = AdapterCapabilities(
         }
     ),
     collapses={
+        FailureKind.ATTEMPT_TIMEOUT: FailureKind.READ_TIMEOUT,
         FailureKind.POOL_TIMEOUT: FailureKind.CONNECT_TIMEOUT,
         FailureKind.PROTOCOL_ERROR: FailureKind.DISCONNECTED,
         FailureKind.WRITE_TIMEOUT: FailureKind.TOTAL_TIMEOUT,
     },
     notes={
         "sync_only": "requests has no async client; build_async raises.",
+        "attempt_timeout": (
+            "A sync runtime cannot cancel an attempt, so no ceiling ever fires; the stall it would have caught "
+            "arrives as the clamped read phase."
+        ),
         "no_session_timeout": (
             "requests has NO session-level timeout default - a bare session.get() hangs forever. The engine "
             "closes that hole: every attempt is sent with the planned (connect, read) tuple."

@@ -28,7 +28,7 @@ from ..core.config import ClientConfig, RedirectMode, is_set, resolve
 from ..core.contracts.adapter import AdapterDeps
 from ..core.engine.aio import AsyncAttemptEngine
 from ..core.engine.sync import SyncAttemptEngine
-from ..core.errors import CallError, CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
+from ..core.errors import AttemptTimeoutError, CallError, CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
 from ..core.model import IDEMPOTENT_METHODS, ConnMetrics, FailureKind, Outcome, RequestInfo, ResolvedTimeouts, origin_of
 from ..core.native import accepted_overrides, validate_native
 from ..core.plan import CallPlan, ClientHandle, ClientRuntime, compile_plan, register_handle
@@ -105,6 +105,7 @@ def capabilities_for(adapter: str) -> AdapterCapabilities:
                 FailureKind.READ_TIMEOUT,
                 FailureKind.WRITE_TIMEOUT,
                 FailureKind.POOL_TIMEOUT,
+                FailureKind.ATTEMPT_TIMEOUT,
                 FailureKind.TOTAL_TIMEOUT,
                 FailureKind.CONNECT_ERROR,
                 FailureKind.TLS_ERROR,
@@ -120,6 +121,10 @@ def capabilities_for(adapter: str) -> AdapterCapabilities:
         collapses={FailureKind.DNS_ERROR: FailureKind.CONNECT_ERROR},
         notes={
             "deadline_hard": "Hard cancellation on the async client only; the sync client clamps phases (soft).",
+            "attempt_timeout": (
+                "Emitted by the async client only; the sync client drops the attempt ceiling, so a stall arrives as "
+                "read_timeout."
+            ),
             "pool_limit_per_host": "Emulated as a per-origin in-flight semaphore; limits requests, not connections.",
             "dns_error": f"{adapter} wraps DNS failures into ConnectError; they surface as connect_error.",
             "proxy_from_env": "Environment proxies are parsed into mounts; NO_PROXY entries match hosts literally.",
@@ -173,6 +178,7 @@ def make_error_translator(
     circuit_cls: type[CircuitOpenError],
     deadline_cls: type[DeadlineExceededError],
     redirects_cls: type[TooManyRedirectsError],
+    attempt_cls: type[AttemptTimeoutError],
 ) -> Callable[[CallError], BaseException]:
     """Build the CallError -> dual-family translator from the bound classes."""
 
@@ -181,6 +187,8 @@ def make_error_translator(
             return circuit_cls(error.key, error.retry_after)
         if isinstance(error, DeadlineExceededError):
             return deadline_cls(error.total)
+        if isinstance(error, AttemptTimeoutError):
+            return attempt_cls(error.attempt)
         if isinstance(error, TooManyRedirectsError):
             return redirects_cls(error.hops)
         return error

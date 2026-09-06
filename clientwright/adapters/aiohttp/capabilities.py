@@ -43,6 +43,7 @@ CAPABILITIES = AdapterCapabilities(
         {
             FailureKind.CONNECT_TIMEOUT,
             FailureKind.READ_TIMEOUT,
+            FailureKind.ATTEMPT_TIMEOUT,
             FailureKind.TOTAL_TIMEOUT,
             FailureKind.CONNECT_ERROR,
             FailureKind.DNS_ERROR,

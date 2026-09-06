@@ -13,6 +13,7 @@ from .._lazy import lazy_attribute
 if TYPE_CHECKING:
     from .adapter import HttpxAdapter as HttpxAdapter
     from .capabilities import CAPABILITIES as CAPABILITIES
+    from .errors import HttpxAttemptTimeoutError as HttpxAttemptTimeoutError
     from .errors import HttpxCircuitOpenError as HttpxCircuitOpenError
     from .errors import HttpxDeadlineExceededError as HttpxDeadlineExceededError
     from .errors import HttpxTooManyRedirectsError as HttpxTooManyRedirectsError
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 _EXPORTS = {
     "CAPABILITIES": "capabilities",
     "HttpxAdapter": "adapter",
+    "HttpxAttemptTimeoutError": "errors",
     "HttpxCircuitOpenError": "errors",
     "HttpxDeadlineExceededError": "errors",
     "HttpxTooManyRedirectsError": "errors",
@@ -39,6 +41,7 @@ __all__ = [
     "IDEMPOTENT_EXTENSION",
     "ROUTE_EXTENSION",
     "HttpxAdapter",
+    "HttpxAttemptTimeoutError",
     "HttpxCircuitOpenError",
     "HttpxDeadlineExceededError",
     "HttpxTooManyRedirectsError",

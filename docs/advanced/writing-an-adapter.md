@@ -66,7 +66,10 @@ CAPABILITIES = AdapterCapabilities(
 This module must import **without the SDK installed** — it is what
 `capabilities_matrix()` shows to users deciding whether to adopt you. Understate
 rather than overstate: `dropped` with a reason beats a knob that silently does
-nothing.
+nothing. `emits` also covers what the engine itself surfaces through your seam:
+`total_timeout`, `circuit_open`, `cancelled` and, on an async adapter,
+`attempt_timeout` — a default retryable kind you neither emit nor collapse is
+reported dead on every build.
 
 ## 5. Register and test
 

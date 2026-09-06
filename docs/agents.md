@@ -210,7 +210,7 @@ the circuit registry, the retry budget registry and the per-origin limiters from
 | Field | Default | Meaning |
 |---|---|---|
 | `total` | `30.0` | wall clock for the whole logical call: every attempt, backoff sleep and redirect hop. `None` = unbounded |
-| `attempt` | `UNSET` | ceiling for one attempt. Async enforces it by cancellation; sync cannot and reports it dropped |
+| `attempt` | `UNSET` | ceiling for one attempt. Async enforces it by cancellation and labels a cut attempt `attempt_timeout` (retryable by default); sync cannot and reports it dropped |
 | `connect` | `5.0` | |
 | `read` | `UNSET` | |
 | `write` | `UNSET` | |
@@ -240,7 +240,7 @@ each attempt — a phase that is `None` after resolution becomes exactly the rem
 | `max_backoff` | `10.0` | |
 | `multiplier` | `2.0` | `>= 1` |
 | `jitter` | `0.2` | within `[0, 1]`; multiplicative ±20 % |
-| `retryable_kinds` | `DEFAULT_RETRYABLE_KINDS` | `connect_timeout`, `connect_error`, `dns_error`, `pool_timeout`, `read_timeout`, `disconnected` |
+| `retryable_kinds` | `DEFAULT_RETRYABLE_KINDS` | `connect_timeout`, `connect_error`, `dns_error`, `pool_timeout`, `read_timeout`, `attempt_timeout`, `disconnected` |
 | `retryable_status` | `DEFAULT_RETRYABLE_STATUS` | `{429, 502, 503, 504}` — note `500` is absent |
 | `methods` | `IDEMPOTENT_METHODS` | `{GET, HEAD, PUT, DELETE, OPTIONS, TRACE}` |
 | `respect_retry_after` | `True` | a `Retry-After` (seconds or HTTP-date) replaces the computed backoff |
@@ -285,7 +285,7 @@ exports.
 
 | Name | Values / fields |
 |---|---|
-| `FailureKind` | `connect_timeout`, `read_timeout`, `write_timeout`, `pool_timeout`, `total_timeout`, `connect_error`, `dns_error`, `tls_error`, `protocol_error`, `disconnected`, `body_error`, `status`, `cancelled`, `circuit_open`, `unknown` |
+| `FailureKind` | `connect_timeout`, `read_timeout`, `write_timeout`, `pool_timeout`, `attempt_timeout`, `total_timeout`, `connect_error`, `dns_error`, `tls_error`, `protocol_error`, `disconnected`, `body_error`, `status`, `cancelled`, `circuit_open`, `unknown` |
 | `Outcome` | `kind` (`None` means success), `status_code`, `retry_after`, `exception`; `.ok` |
 | `RequestInfo` | `method`, `origin`, `url`, `route`, `idempotent`; `.circuit_key(mode)` |
 | `ResolvedTimeouts` | `connect`, `read`, `write`, `pool_acquire`, `attempt` |
@@ -604,14 +604,16 @@ a class that *also* inherits the SDK's own error family, so an existing
 | `NativeConfigError` | base of the passthrough errors: `UnknownNativeSlotError`, `ReservedNativeKeyError`, `UnknownNativeKeyError` (with a did-you-mean), `NativeConfigConflictError` — the four subclasses live in `clientwright.core.errors` |
 | `CircuitOpenError` | the circuit for this key is open; `.key`, `.retry_after` |
 | `DeadlineExceededError` | the total deadline is exhausted; `.total` |
+| `AttemptTimeoutError` | the last attempt hit the `attempt` ceiling while the total still had room; `.attempt`. Async engines only |
 | `TooManyRedirectsError` | more than `max_redirects` hops; `.hops` |
 | `NotReplayableError` | exported, and passed through the adapter translators unchanged, but the engine never raises it: a non-replayable body ends the call with the response it already has plus a `retry_skipped{reason="non_replayable"}` counter |
 | `CallerOverrideForbiddenError` | a per-call timeout under `CallerOverride.RAISE`; a `CallError`, importable from `clientwright.core.policy.timeout` |
 
-Per-adapter classes are the same three names with the adapter's prefix:
-`HttpxCircuitOpenError`, `HttpxDeadlineExceededError`, `HttpxTooManyRedirectsError` (also
-under `clientwright.adapters.httpx2`, deliberately with the same class names), and the
-`Aiohttp*`, `Requests*`, `Urllib3*` trios.
+Per-adapter classes are the same names with the adapter's prefix:
+`HttpxCircuitOpenError`, `HttpxDeadlineExceededError`, `HttpxAttemptTimeoutError`,
+`HttpxTooManyRedirectsError` (also under `clientwright.adapters.httpx2`, deliberately with
+the same class names) and the `Aiohttp*` four; the `Requests*` and `Urllib3*` trios have no
+`AttemptTimeoutError`, because a sync engine never raises one.
 
 ## Documentation map
 

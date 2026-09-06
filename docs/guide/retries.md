@@ -34,9 +34,10 @@ Two lists decide, and both are yours to change:
   `500` is treated as "the server executed something and failed" — replaying it is
   a decision you must opt into, not a default.
 - **Failure kinds**: `connect_timeout`, `connect_error`, `dns_error`,
-  `pool_timeout`, `read_timeout`, `disconnected` — infrastructure failures where
-  the request plausibly never ran. A `read_timeout` *after* bytes were sent is the
-  riskiest of these, which is exactly why the idempotency gate below exists.
+  `pool_timeout`, `read_timeout`, `attempt_timeout`, `disconnected` —
+  infrastructure failures where the request plausibly never ran. A `read_timeout`
+  or `attempt_timeout` *after* bytes were sent is the riskiest of these, which is
+  exactly why the idempotency gate below exists.
 
 ```python
 from clientwright import FailureKind

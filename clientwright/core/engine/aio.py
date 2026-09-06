@@ -15,8 +15,8 @@ from typing import Any
 
 from ..contracts.adapter import AdapterDeps
 from ..contracts.message import AsyncNormalizer, RequestView, ResponseView
-from ..errors import CallError, CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
-from ..model import Attempt, FailureKind, Outcome
+from ..errors import AttemptTimeoutError, CallError, CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
+from ..model import Attempt, FailureKind, Outcome, RequestInfo
 from ..plan import CallPlan, ClientRuntime
 from ..policy.budget import Deadline
 from ..telemetry.emitter import CallObservation, ClientTelemetry
@@ -79,6 +79,8 @@ class AsyncAttemptEngine:
             return Outcome(kind=FailureKind.CIRCUIT_OPEN, exception=error)
         if isinstance(error, DeadlineExceededError):
             return Outcome(kind=FailureKind.TOTAL_TIMEOUT, exception=error)
+        if isinstance(error, AttemptTimeoutError):
+            return Outcome(kind=FailureKind.ATTEMPT_TIMEOUT, exception=error)
         return Outcome(kind=FailureKind.UNKNOWN, exception=error)
 
     def _wrap_stream(self, response: ResponseView, info: Any) -> None:
@@ -171,6 +173,30 @@ class AsyncAttemptEngine:
             return True
         return await self._norm.freeze(request)
 
+    def _retry_delay(
+        self, info: RequestInfo, history: list[Attempt], deadline: Deadline, replayable: bool
+    ) -> float | None:
+        """Backoff before the next attempt, or None when the last outcome is final."""
+        plan = self._plan
+        runtime = self._runtime
+        if plan.retry_policy is None:
+            return None
+        decision = plan.retry_policy.decide(
+            info=info,
+            history=history,
+            remaining=deadline.remaining(),
+            replayable=replayable,
+            rng=runtime.rng,
+        )
+        if not decision.retry:
+            if decision.reason in SKIP_REASONS:
+                self._telemetry.retry_skipped(decision.reason)
+            return None
+        if runtime.retry_budgets is not None and not runtime.retry_budgets.try_spend(info.origin):
+            self._telemetry.retry_skipped("budget")
+            return None
+        return decision.delay
+
     async def _attempts(
         self,
         request: RequestView,
@@ -195,8 +221,9 @@ class AsyncAttemptEngine:
             attempt_started = runtime.clock()
             observation.attempts += 1
             response: ResponseView | None = None
+            ceiling = asyncio.timeout(timeouts.attempt)
             try:
-                async with asyncio.timeout(timeouts.attempt):
+                async with ceiling:
                     native_response = await send(request)
                 response = self._norm.wrap_response(native_response)
                 outcome = self._norm.classify_response(response)
@@ -204,10 +231,17 @@ class AsyncAttemptEngine:
                 raise
             except asyncio.CancelledError:
                 raise
-            except TimeoutError as error:
-                outcome = Outcome(kind=FailureKind.TOTAL_TIMEOUT, exception=error)
             except Exception as error:
-                outcome = Outcome(kind=self._norm.classify_error(error), exception=error)
+                # Only a fired ceiling is the engine's own timeout. Matching on
+                # TimeoutError would also swallow the SDK's: aiohttp's whole
+                # timeout family subclasses it.
+                if not ceiling.expired():
+                    kind = self._norm.classify_error(error)
+                elif deadline.expired:
+                    kind = FailureKind.TOTAL_TIMEOUT
+                else:
+                    kind = FailureKind.ATTEMPT_TIMEOUT
+                outcome = Outcome(kind=kind, exception=error)
             attempt = Attempt(
                 index=len(history) + 1,
                 started=attempt_started,
@@ -221,27 +255,16 @@ class AsyncAttemptEngine:
                 self._telemetry.attempt_end(observation, info, attempt)
             if outcome.kind is FailureKind.TOTAL_TIMEOUT and deadline.expired:
                 raise DeadlineExceededError(deadline.total or 0.0) from outcome.exception
-            if plan.retry_policy is None:
-                return response, outcome
-            decision = plan.retry_policy.decide(
-                info=info,
-                history=history,
-                remaining=deadline.remaining(),
-                replayable=replayable,
-                rng=runtime.rng,
-            )
-            if not decision.retry:
-                if decision.reason in SKIP_REASONS:
-                    self._telemetry.retry_skipped(decision.reason)
-                return response, outcome
-            if runtime.retry_budgets is not None and not runtime.retry_budgets.try_spend(info.origin):
-                self._telemetry.retry_skipped("budget")
+            delay = self._retry_delay(info, history, deadline, replayable)
+            if delay is None:
+                if outcome.kind is FailureKind.ATTEMPT_TIMEOUT:
+                    raise AttemptTimeoutError(timeouts.attempt or 0.0) from outcome.exception
                 return response, outcome
             if response is not None:
                 await self._norm.discard(response)
             await self._norm.rewind(request)
-            if decision.delay > 0:
-                await asyncio.sleep(decision.delay)
+            if delay > 0:
+                await asyncio.sleep(delay)
 
 
 __all__ = ["AsyncAttemptEngine", "AsyncSend", "ErrorTranslator"]

@@ -47,7 +47,12 @@ translate to whatever the SDK natively understands. Two things are worth knowing
   `on_unsupported="strict"`.
 
 `attempt` is the odd one out: a ceiling for one whole attempt regardless of phase.
-Async engines enforce it by cancellation; sync engines by clamping phases.
+Async engines enforce it by cancellation, and an attempt cut by it ends with the
+outcome `attempt_timeout`, which is retryable by default — `attempt=0.4` under
+`total=1.0` cuts a hung attempt at 0.4 s and tries again while the budget lasts. A
+ceiling clamped to what the total has left is the total firing, and is labelled
+`total_timeout`. Sync engines cannot cancel a blocked attempt and report the knob
+dropped.
 
 ## When the caller also passes a timeout
 
@@ -96,6 +101,7 @@ deps = AdapterDeps(deadline_source=my_source)  # (2)!
 
 A call that dies on the total raises `DeadlineExceededError` — dual-inherited from
 the adapter's native error family, so your existing `except httpx.TimeoutException`
-keeps catching it — and lands in metrics with `outcome="total_timeout"`. A phase
-that fired first keeps its own name (`connect_timeout`, `read_timeout`, ...); the
-taxonomy never merges them.
+keeps catching it — and lands in metrics with `outcome="total_timeout"`. A call
+whose last attempt died on the `attempt` ceiling raises `AttemptTimeoutError` the
+same way, with `outcome="attempt_timeout"`. A phase that fired first keeps its own
+name (`connect_timeout`, `read_timeout`, ...); the taxonomy never merges them.

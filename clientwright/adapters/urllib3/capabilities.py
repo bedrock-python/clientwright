@@ -56,11 +56,16 @@ CAPABILITIES = AdapterCapabilities(
         }
     ),
     collapses={
+        FailureKind.ATTEMPT_TIMEOUT: FailureKind.READ_TIMEOUT,
         FailureKind.PROTOCOL_ERROR: FailureKind.DISCONNECTED,
         FailureKind.WRITE_TIMEOUT: FailureKind.TOTAL_TIMEOUT,
     },
     notes={
         "sync_only": "urllib3 has no async client; build_async raises.",
+        "attempt_timeout": (
+            "A sync runtime cannot cancel an attempt, so no ceiling ever fires; the stall it would have caught "
+            "arrives as the clamped read phase."
+        ),
         "seam": (
             "The engine is injected as an INSTANCE urlopen on a genuine PoolManager (type(client) is "
             "urllib3.PoolManager); recursive native redirect hops re-enter it and pass straight through."

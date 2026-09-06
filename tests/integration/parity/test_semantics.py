@@ -258,6 +258,27 @@ def test__total_deadline__caps_slow_origin_sync(adapter_name: str, origin: Origi
     assert metrics.calls[0]["outcome"] == "read_timeout"
 
 
+# --- attempt ceiling: cut, retried, then the family's own timeout error ------
+
+
+@pytest.mark.parametrize("adapter_name", adapter_params(ASYNC_ADAPTERS))
+async def test__attempt_ceiling__retried_then_family_timeout(adapter_name: str, origin: OriginServer) -> None:
+    driver = get_driver(adapter_name)
+    metrics, deps = fresh_deps()
+    timeout = TimeoutConfig(total=5.0, attempt=0.3, connect=1.0)
+    client = driver.build(battery_config(driver, origin, retry=FAST_RETRY, timeout=timeout), deps)
+    started = time.monotonic()
+    try:
+        with pytest.raises(driver.family_errors()):
+            await driver.request(client, origin.url, "GET", "/slow/3")
+    finally:
+        await driver.close(client)
+    assert time.monotonic() - started < 2.5  # three ceilings and two backoffs, never a 3s stall
+    assert origin.request_count("/slow/3") == 3
+    assert [record["outcome"] for record in metrics.attempts] == ["attempt_timeout"] * 3
+    assert metrics.calls[0]["outcome"] == "attempt_timeout"
+
+
 # --- owned redirects: hops inside ONE logical call ---------------------------
 
 
