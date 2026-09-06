@@ -175,6 +175,21 @@ async def test__slow_response__total_deadline_cancels_and_translates(origin: Ori
     await client.close()
 
 
+async def test__sock_read_timeout__classified_read_timeout_and_retried(
+    origin: OriginServer, metrics: RecordingMetrics, deps: AdapterDeps
+) -> None:
+    # aiohttp's timeout family subclasses TimeoutError; the engine must leave
+    # it to the adapter's classifier instead of calling it the total.
+    config = base_config(origin, timeout=TimeoutConfig(total=5.0, connect=1.0, read=0.2), retry=FAST_RETRY)
+    client = await build(config, deps)
+    with pytest.raises(aiohttp.ServerTimeoutError):
+        await client.get("/slow/1")
+    await client.close()
+    assert origin.request_count("/slow/1") == 3
+    assert [record["outcome"] for record in metrics.attempts] == ["read_timeout"] * 3
+    assert metrics.calls[0]["outcome"] == "read_timeout"
+
+
 async def test__deadline_header__stamped_with_remaining_budget(origin: OriginServer, deps: AdapterDeps) -> None:
     config = base_config(origin, timeout=TimeoutConfig(total=30.0), deadline_header="X-Deadline-Ms")
     client = await build(config, deps)

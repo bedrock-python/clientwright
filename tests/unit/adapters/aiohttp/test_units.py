@@ -15,6 +15,7 @@ from yarl import URL  # noqa: E402
 import clientwright  # noqa: E402
 from clientwright.adapters.aiohttp import (  # noqa: E402
     AiohttpAdapter,
+    AiohttpAttemptTimeoutError,
     AiohttpCircuitOpenError,
     AiohttpDeadlineExceededError,
     AiohttpTooManyRedirectsError,
@@ -26,6 +27,7 @@ from clientwright.adapters.aiohttp.middleware import ProxyRouter  # noqa: E402
 from clientwright.adapters.aiohttp.options import current_call_options  # noqa: E402
 from clientwright.adapters.aiohttp.views import AiohttpRequestView  # noqa: E402
 from clientwright.core.errors import (  # noqa: E402
+    AttemptTimeoutError,
     CallError,
     CircuitOpenError,
     DeadlineExceededError,
@@ -127,6 +129,14 @@ def test__deadline__catchable_as_timeout_and_client_error() -> None:
     assert isinstance(error, TimeoutError)
     assert isinstance(error, aiohttp.ClientError)
     assert "2.000" in str(error)
+
+
+def test__attempt_timeout__catchable_as_timeout_and_client_error() -> None:
+    error = translate_call_error(AttemptTimeoutError(0.4))
+    assert isinstance(error, AiohttpAttemptTimeoutError)
+    assert isinstance(error, TimeoutError)
+    assert isinstance(error, aiohttp.ClientError)
+    assert "0.400" in str(error)
 
 
 def test__too_many_redirects__catchable_and_printable() -> None:

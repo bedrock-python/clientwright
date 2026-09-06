@@ -13,6 +13,7 @@ from .._lazy import lazy_attribute
 if TYPE_CHECKING:
     from .adapter import AiohttpAdapter as AiohttpAdapter
     from .capabilities import CAPABILITIES as CAPABILITIES
+    from .errors import AiohttpAttemptTimeoutError as AiohttpAttemptTimeoutError
     from .errors import AiohttpCircuitOpenError as AiohttpCircuitOpenError
     from .errors import AiohttpDeadlineExceededError as AiohttpDeadlineExceededError
     from .errors import AiohttpTooManyRedirectsError as AiohttpTooManyRedirectsError
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 _EXPORTS = {
     "CAPABILITIES": "capabilities",
     "AiohttpAdapter": "adapter",
+    "AiohttpAttemptTimeoutError": "errors",
     "AiohttpCircuitOpenError": "errors",
     "AiohttpDeadlineExceededError": "errors",
     "AiohttpTooManyRedirectsError": "errors",
@@ -37,6 +39,7 @@ def __getattr__(name: str) -> Any:
 __all__ = [
     "CAPABILITIES",
     "AiohttpAdapter",
+    "AiohttpAttemptTimeoutError",
     "AiohttpCircuitOpenError",
     "AiohttpDeadlineExceededError",
     "AiohttpTooManyRedirectsError",

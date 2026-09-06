@@ -6,7 +6,13 @@ keeps working when clientwright raises on its own authority.
 
 from __future__ import annotations
 
-from ...core.errors import CallError, CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
+from ...core.errors import (
+    AttemptTimeoutError,
+    CallError,
+    CircuitOpenError,
+    DeadlineExceededError,
+    TooManyRedirectsError,
+)
 from ._imports import aiohttp
 
 
@@ -16,6 +22,10 @@ class AiohttpCircuitOpenError(CircuitOpenError, aiohttp.ClientError):
 
 class AiohttpDeadlineExceededError(DeadlineExceededError, aiohttp.ServerTimeoutError):
     """Total deadline exhausted, catchable as asyncio.TimeoutError and aiohttp.ClientError."""
+
+
+class AiohttpAttemptTimeoutError(AttemptTimeoutError, aiohttp.ServerTimeoutError):
+    """Attempt ceiling exhausted, catchable as asyncio.TimeoutError and aiohttp.ClientError."""
 
 
 class AiohttpTooManyRedirectsError(TooManyRedirectsError, aiohttp.TooManyRedirects):
@@ -44,12 +54,15 @@ def translate_call_error(error: CallError) -> BaseException:
         return AiohttpCircuitOpenError(error.key, error.retry_after)
     if isinstance(error, DeadlineExceededError):
         return AiohttpDeadlineExceededError(error.total)
+    if isinstance(error, AttemptTimeoutError):
+        return AiohttpAttemptTimeoutError(error.attempt)
     if isinstance(error, TooManyRedirectsError):
         return AiohttpTooManyRedirectsError(error.hops)
     return error
 
 
 __all__ = [
+    "AiohttpAttemptTimeoutError",
     "AiohttpCircuitOpenError",
     "AiohttpDeadlineExceededError",
     "AiohttpTooManyRedirectsError",

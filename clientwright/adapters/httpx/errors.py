@@ -6,7 +6,7 @@ keeps working when clientwright raises on its own authority.
 
 from __future__ import annotations
 
-from ...core.errors import CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
+from ...core.errors import AttemptTimeoutError, CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
 from .._httpx_shared import make_error_translator
 from ._imports import httpx
 
@@ -19,15 +19,20 @@ class HttpxDeadlineExceededError(DeadlineExceededError, httpx.TimeoutException):
     """Total deadline exhausted, catchable as httpx.TimeoutException."""
 
 
+class HttpxAttemptTimeoutError(AttemptTimeoutError, httpx.TimeoutException):
+    """Attempt ceiling exhausted, catchable as httpx.TimeoutException."""
+
+
 class HttpxTooManyRedirectsError(TooManyRedirectsError, httpx.TooManyRedirects):
     """Owned redirect limit exceeded, catchable as httpx.TooManyRedirects."""
 
 
 translate_call_error = make_error_translator(
-    HttpxCircuitOpenError, HttpxDeadlineExceededError, HttpxTooManyRedirectsError
+    HttpxCircuitOpenError, HttpxDeadlineExceededError, HttpxTooManyRedirectsError, HttpxAttemptTimeoutError
 )
 
 __all__ = [
+    "HttpxAttemptTimeoutError",
     "HttpxCircuitOpenError",
     "HttpxDeadlineExceededError",
     "HttpxTooManyRedirectsError",

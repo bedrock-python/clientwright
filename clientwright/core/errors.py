@@ -86,6 +86,14 @@ class DeadlineExceededError(CallError):
         self.total = total
 
 
+class AttemptTimeoutError(CallError):
+    """The last attempt hit its ceiling while the total deadline still had room."""
+
+    def __init__(self, attempt: float) -> None:
+        super().__init__(f"Attempt ceiling of {attempt:.3f}s exhausted")
+        self.attempt = attempt
+
+
 class TooManyRedirectsError(CallError):
     def __init__(self, hops: int) -> None:
         super().__init__(f"Exceeded {hops} redirect hops")
@@ -105,6 +113,7 @@ class NotReplayableError(CallError):
 
 
 __all__ = [
+    "AttemptTimeoutError",
     "CallError",
     "CircuitOpenError",
     "ClientwrightError",

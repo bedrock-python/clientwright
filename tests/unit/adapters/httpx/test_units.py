@@ -17,6 +17,7 @@ from clientwright.adapters.httpx import (  # noqa: E402
     IDEMPOTENT_EXTENSION,
     ROUTE_EXTENSION,
     HttpxAdapter,
+    HttpxAttemptTimeoutError,
     HttpxCircuitOpenError,
     HttpxDeadlineExceededError,
     HttpxTooManyRedirectsError,
@@ -28,6 +29,7 @@ from clientwright.adapters.httpx.views import HttpxRequestView, _ReplayStream  #
 from clientwright.core.capabilities import Capability  # noqa: E402
 from clientwright.core.config import ClientConfig, NativeOptions, TlsConfig  # noqa: E402
 from clientwright.core.errors import (  # noqa: E402
+    AttemptTimeoutError,
     CircuitOpenError,
     DeadlineExceededError,
     NotReplayableError,
@@ -168,6 +170,13 @@ def test__deadline__catchable_as_httpx_timeout() -> None:
     error = translate_call_error(DeadlineExceededError(5.0))
     assert isinstance(error, HttpxDeadlineExceededError)
     assert isinstance(error, httpx.TimeoutException)
+
+
+def test__attempt_timeout__catchable_as_httpx_timeout() -> None:
+    error = translate_call_error(AttemptTimeoutError(0.4))
+    assert isinstance(error, HttpxAttemptTimeoutError)
+    assert isinstance(error, httpx.TimeoutException)
+    assert error.attempt == 0.4
 
 
 def test__redirects__catchable_as_httpx_too_many_redirects() -> None:

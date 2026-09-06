@@ -17,7 +17,7 @@ from typing import Any
 from ..contracts.adapter import AdapterDeps
 from ..contracts.message import RequestView, ResponseView, SyncNormalizer
 from ..errors import CallError, CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
-from ..model import Attempt, FailureKind, Outcome
+from ..model import Attempt, FailureKind, Outcome, RequestInfo
 from ..plan import CallPlan, ClientRuntime
 from ..policy.budget import Deadline
 from ..telemetry.emitter import CallObservation, ClientTelemetry
@@ -169,6 +169,30 @@ class SyncAttemptEngine:
             return True
         return self._norm.freeze(request)
 
+    def _retry_delay(
+        self, info: RequestInfo, history: list[Attempt], deadline: Deadline, replayable: bool
+    ) -> float | None:
+        """Backoff before the next attempt, or None when the last outcome is final."""
+        plan = self._plan
+        runtime = self._runtime
+        if plan.retry_policy is None:
+            return None
+        decision = plan.retry_policy.decide(
+            info=info,
+            history=history,
+            remaining=deadline.remaining(),
+            replayable=replayable,
+            rng=runtime.rng,
+        )
+        if not decision.retry:
+            if decision.reason in SKIP_REASONS:
+                self._telemetry.retry_skipped(decision.reason)
+            return None
+        if runtime.retry_budgets is not None and not runtime.retry_budgets.try_spend(info.origin):
+            self._telemetry.retry_skipped("budget")
+            return None
+        return decision.delay
+
     def _attempts(
         self,
         request: RequestView,
@@ -216,27 +240,14 @@ class SyncAttemptEngine:
                 self._telemetry.attempt_end(observation, info, attempt)
             if outcome.kind is FailureKind.TOTAL_TIMEOUT and deadline.expired:
                 raise DeadlineExceededError(deadline.total or 0.0) from outcome.exception
-            if plan.retry_policy is None:
-                return response, outcome
-            decision = plan.retry_policy.decide(
-                info=info,
-                history=history,
-                remaining=deadline.remaining(),
-                replayable=replayable,
-                rng=runtime.rng,
-            )
-            if not decision.retry:
-                if decision.reason in SKIP_REASONS:
-                    self._telemetry.retry_skipped(decision.reason)
-                return response, outcome
-            if runtime.retry_budgets is not None and not runtime.retry_budgets.try_spend(info.origin):
-                self._telemetry.retry_skipped("budget")
+            delay = self._retry_delay(info, history, deadline, replayable)
+            if delay is None:
                 return response, outcome
             if response is not None:
                 self._norm.discard(response)
             self._norm.rewind(request)
-            if decision.delay > 0:
-                time.sleep(decision.delay)
+            if delay > 0:
+                time.sleep(delay)
 
 
 __all__ = ["SyncAttemptEngine", "SyncSend"]

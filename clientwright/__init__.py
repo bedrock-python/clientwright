@@ -60,6 +60,7 @@ from .core.contracts import (
 from .core.contracts.adapter import default_deps
 from .core.contracts.settings import client_config_from_settings
 from .core.errors import (
+    AttemptTimeoutError,
     CallError,
     CircuitOpenError,
     ClientwrightError,
@@ -117,6 +118,7 @@ __all__ = [
     "UNSET",
     "AdapterCapabilities",
     "AdapterDeps",
+    "AttemptTimeoutError",
     "CallError",
     "CallOptions",
     "CallerOverride",

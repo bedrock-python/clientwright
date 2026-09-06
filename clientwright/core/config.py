@@ -87,6 +87,7 @@ DEFAULT_RETRYABLE_KINDS: Final = frozenset(
         FailureKind.DNS_ERROR,
         FailureKind.POOL_TIMEOUT,
         FailureKind.READ_TIMEOUT,
+        FailureKind.ATTEMPT_TIMEOUT,
         FailureKind.DISCONNECTED,
     }
 )
@@ -99,6 +100,7 @@ DEFAULT_TRIP_KINDS: Final = frozenset(
         FailureKind.READ_TIMEOUT,
         FailureKind.WRITE_TIMEOUT,
         FailureKind.POOL_TIMEOUT,
+        FailureKind.ATTEMPT_TIMEOUT,
         FailureKind.TOTAL_TIMEOUT,
         FailureKind.CONNECT_ERROR,
         FailureKind.DNS_ERROR,

@@ -13,6 +13,7 @@ from clientwright.core.capabilities import (
     DurationBoundary,
     SeamGranularity,
     Support,
+    capabilities_matrix,
     dead_retryable_kinds,
 )
 from clientwright.core.config import ClientConfig, PoolConfig, RetryConfig, RetryMode, UnsupportedPolicy
@@ -105,6 +106,14 @@ def test__dead_retryable_kinds__reported_for_unreachable_kinds() -> None:
     plan = compile_plan(make_config(), narrow, native_timeout_defaults=NATIVE_DEFAULTS)
     assert FailureKind.READ_TIMEOUT in plan.report.dead_retryable_kinds
     assert FailureKind.CONNECT_ERROR not in plan.report.dead_retryable_kinds
+
+
+def test__default_retry_kinds__reachable_on_every_registered_adapter() -> None:
+    # A default retryable kind an adapter can never produce would turn every
+    # strict build of a default config into a failed deploy.
+    for capabilities in capabilities_matrix().values():
+        plan = compile_plan(ClientConfig(service_name="svc"), capabilities, native_timeout_defaults=NATIVE_DEFAULTS)
+        assert plan.report.dead_retryable_kinds == frozenset(), capabilities.adapter
 
 
 # --- dead retryable kinds ---

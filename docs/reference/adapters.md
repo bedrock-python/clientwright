@@ -11,14 +11,15 @@ this page is the complete list.
 ## Per-adapter exports
 
 Every adapter package exports its adapter class, its per-call channel, and its
-dual-family error trio (each inherits both the clientwright error and the SDK's
-native family):
+dual-family errors (each inherits both the clientwright error and the SDK's
+native family; only the async adapters carry an `AttemptTimeoutError`, because a
+sync engine never raises one):
 
 | Package | Per-call channel | Errors |
 |---|---|---|
-| `clientwright.adapters.httpx` | `ROUTE_EXTENSION`, `IDEMPOTENT_EXTENSION` (request extensions) | `HttpxCircuitOpenError`, `HttpxDeadlineExceededError`, `HttpxTooManyRedirectsError` |
+| `clientwright.adapters.httpx` | `ROUTE_EXTENSION`, `IDEMPOTENT_EXTENSION` (request extensions) | `HttpxCircuitOpenError`, `HttpxDeadlineExceededError`, `HttpxAttemptTimeoutError`, `HttpxTooManyRedirectsError` |
 | `clientwright.adapters.httpx2` | same names as httpx | same class names as httpx, inheriting `httpx2`'s family |
-| `clientwright.adapters.aiohttp` | `call_options(route=..., idempotent=...)` | `AiohttpCircuitOpenError`, `AiohttpDeadlineExceededError`, `AiohttpTooManyRedirectsError` |
+| `clientwright.adapters.aiohttp` | `call_options(route=..., idempotent=...)` | `AiohttpCircuitOpenError`, `AiohttpDeadlineExceededError`, `AiohttpAttemptTimeoutError`, `AiohttpTooManyRedirectsError` |
 | `clientwright.adapters.requests` | `call_options(...)` | `RequestsCircuitOpenError`, `RequestsDeadlineExceededError`, `RequestsTooManyRedirectsError` |
 | `clientwright.adapters.urllib3` | `call_options(...)` | `Urllib3CircuitOpenError`, `Urllib3DeadlineExceededError`, `Urllib3TooManyRedirectsError` |
 

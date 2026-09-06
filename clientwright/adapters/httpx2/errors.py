@@ -7,7 +7,7 @@ mirror the httpx adapter on purpose.
 
 from __future__ import annotations
 
-from ...core.errors import CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
+from ...core.errors import AttemptTimeoutError, CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
 from .._httpx_shared import make_error_translator
 from ._imports import httpx2
 
@@ -20,15 +20,20 @@ class HttpxDeadlineExceededError(DeadlineExceededError, httpx2.TimeoutException)
     """Total deadline exhausted, catchable as httpx2.TimeoutException."""
 
 
+class HttpxAttemptTimeoutError(AttemptTimeoutError, httpx2.TimeoutException):
+    """Attempt ceiling exhausted, catchable as httpx2.TimeoutException."""
+
+
 class HttpxTooManyRedirectsError(TooManyRedirectsError, httpx2.TooManyRedirects):
     """Owned redirect limit exceeded, catchable as httpx2.TooManyRedirects."""
 
 
 translate_call_error = make_error_translator(
-    HttpxCircuitOpenError, HttpxDeadlineExceededError, HttpxTooManyRedirectsError
+    HttpxCircuitOpenError, HttpxDeadlineExceededError, HttpxTooManyRedirectsError, HttpxAttemptTimeoutError
 )
 
 __all__ = [
+    "HttpxAttemptTimeoutError",
     "HttpxCircuitOpenError",
     "HttpxDeadlineExceededError",
     "HttpxTooManyRedirectsError",
