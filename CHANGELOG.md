@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.2.0...clientwright-v0.2.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* retry gating, native override reporting and connection metrics ([#21](https://github.com/bedrock-python/clientwright/issues/21)) ([b82e2dd](https://github.com/bedrock-python/clientwright/commit/b82e2dd886fd049f1f5d4ae8c169bdabe599d585))
+
 ## [0.2.0](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.1.0...clientwright-v0.2.0) (2026-08-14)
 
 
