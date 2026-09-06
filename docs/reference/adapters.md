@@ -1,3 +1,7 @@
+---
+copy_page: false
+---
+
 # Adapters
 
 Adapter packages import their SDK, so their API docs cannot be auto-rendered in

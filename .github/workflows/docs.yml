@@ -26,6 +26,7 @@ jobs:
       # --no-dev on `uv run` too: without it the implicit sync reinstalls the
       # whole dev group just to build docs.
       - run: uv run --no-dev --group docs zensical build --clean
+      - run: uv run --no-dev --group docs python scripts/emit_markdown.py
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site

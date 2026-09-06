@@ -1,3 +1,7 @@
+---
+copy_page: false
+---
+
 # Core
 
 ## Building and inspecting

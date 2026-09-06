@@ -1,3 +1,7 @@
+---
+copy_page: false
+---
+
 # Contrib
 
 ## Deadline budgets
