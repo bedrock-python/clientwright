@@ -114,11 +114,12 @@ call rate) — not in every HTTP client.
 
 clientwright never writes request or response headers into logs or spans —
 that firehose is excluded by design, which is why there is no header knob on
-`ObservabilityConfig`. If your *own* code logs headers, the toolkit is public:
+`ObservabilityConfig`. `DEFAULT_SENSITIVE_HEADERS` is therefore not a config
+knob either: it is a default list for *your* code, paired with the redactor the
+emitter uses on URLs. Both are exported from the root:
 
 ```python
-from clientwright.core.config import DEFAULT_SENSITIVE_HEADERS
-from clientwright.core.telemetry.redaction import redact_headers
+from clientwright import DEFAULT_SENSITIVE_HEADERS, redact_headers
 
 safe = redact_headers(response.headers, DEFAULT_SENSITIVE_HEADERS)
 ```

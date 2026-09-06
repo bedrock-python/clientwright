@@ -22,10 +22,11 @@ from clientwright.core.capabilities import (
 )
 from clientwright.core.config import ClientConfig, RetryConfig
 from clientwright.core.contracts.adapter import AdapterDeps
+from clientwright.core.contracts.observability import TracerProtocol
 from clientwright.core.engine.aio import AsyncAttemptEngine
 from clientwright.core.engine.base import default_response_outcome
 from clientwright.core.engine.sync import SyncAttemptEngine
-from clientwright.core.model import FailureKind, Outcome, RequestInfo, ResolvedTimeouts, origin_of
+from clientwright.core.model import ConnMetrics, FailureKind, Outcome, RequestInfo, ResolvedTimeouts, origin_of
 from clientwright.core.plan import ClientRuntime, compile_plan
 from clientwright.core.telemetry.emitter import ClientTelemetry
 from clientwright.core.testing import RecordingMetrics
@@ -182,12 +183,13 @@ def as_async_send(script: ScriptedSend) -> Callable[[EngineRequest], Any]:
 class FakeNormalizer:
     """Both normalizer flavors in one object; the request/response ARE the views."""
 
-    def __init__(self, *, freeze_ok: bool = True) -> None:
+    def __init__(self, *, freeze_ok: bool = True, conn: ConnMetrics | None = None) -> None:
         self.freeze_ok = freeze_ok
         self.freezes = 0
         self.rewinds = 0
         self.discards = 0
         self.wrapped_streams = 0
+        self.conn = conn
 
     def wrap_request(self, native: Any) -> EngineRequest:
         assert isinstance(native, EngineRequest)
@@ -212,8 +214,8 @@ class FakeNormalizer:
     def wrap_stream(self, response: FakeResponse, on_done: Callable[[Outcome, float], None]) -> None:
         self.wrapped_streams += 1
 
-    def conn_metrics(self, response: FakeResponse) -> None:
-        return None
+    def conn_metrics(self, response: FakeResponse) -> ConnMetrics | None:
+        return self.conn
 
     # -- sync flavor -------------------------------------------------------
 
@@ -261,6 +263,8 @@ class Harness:
         freeze_ok: bool = True,
         sync: bool = False,
         clock: Callable[[], float] | None = None,
+        tracer: TracerProtocol | None = None,
+        conn: ConnMetrics | None = None,
     ) -> None:
         self.config = config
         self.metrics = RecordingMetrics()
@@ -273,11 +277,11 @@ class Harness:
             seam="test",
             config=config.observability,
             metrics=self.metrics,
-            tracer=None,
+            tracer=tracer,
         )
         self.normalizer: FakeSyncNormalizer | FakeAsyncNormalizer
         if sync:
-            self.normalizer = FakeSyncNormalizer(freeze_ok=freeze_ok)
+            self.normalizer = FakeSyncNormalizer(freeze_ok=freeze_ok, conn=conn)
             self.engine: Any = SyncAttemptEngine(
                 plan=self.plan,
                 runtime=self.runtime,
@@ -287,7 +291,7 @@ class Harness:
                 translate=lambda error: error,
             )
         else:
-            self.normalizer = FakeAsyncNormalizer(freeze_ok=freeze_ok)
+            self.normalizer = FakeAsyncNormalizer(freeze_ok=freeze_ok, conn=conn)
             self.engine = AsyncAttemptEngine(
                 plan=self.plan,
                 runtime=self.runtime,

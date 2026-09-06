@@ -276,10 +276,10 @@ remaining deadline → a token in the origin's budget. Refusals at the last four
 | `ProxyConfig` | `url=None`, `from_env=False` — mutually exclusive, `ValueError` if both are given |
 | `NativeOptions` | `NativeOptions.of(slot={...})`; `slots` is `{slot_name: {kwarg: value}}` |
 
-`DEFAULT_SENSITIVE_HEADERS` is exported but is not a config knob: clientwright never emits
-headers into a log line or a span, so there is nothing for it to protect here. It exists for
-services that log headers themselves, with
-`clientwright.core.telemetry.redaction.redact_headers`.
+`DEFAULT_SENSITIVE_HEADERS` is not a config knob: clientwright never emits headers into a
+log line or a span, so there is nothing for it to protect here. It exists for services that
+log headers themselves, and pairs with `redact_headers(headers, sensitive)` — both are root
+exports.
 
 ### Data model and enums
 
@@ -306,9 +306,8 @@ and `redirects="natvie"` raises `ValueError` instead of silently doing nothing.
 `collapses`, `notes`, `.support_of(capability)`.
 `ConfigApplicationReport`: `adapter`, `applied_natively`, `emulated`, `dropped`,
 `dead_retryable_kinds`, `collapsed_kinds`, `native_overrides`, `.has_issues`, `.issues()`,
-`.enforce(policy)`. `native_overrides` is part of the record's shape but no shipped adapter
-fills it in — read the accepted passthrough off your own `NativeOptions`, not off the
-report.
+`.enforce(policy)`. `native_overrides` is `{slot: (accepted key, ...)}` — the passthrough
+that survived validation, per slot, keys sorted; a slot you passed nothing into is absent.
 
 ### Per-call options
 
@@ -374,7 +373,15 @@ Metric names and label sets are a frozen wire contract in
 | `http_client_uninstrumented_calls_total` | counter | aiohttp only: a request that bypassed the middleware |
 
 `outcome` is `success` or a `FailureKind` value; `status` is the numeric status or the
-string `none`; `route` is `unknown` until a call site sets it. Backends:
+string `none`; `route` is `unknown` until a call site sets it.
+
+One `CLIENT` span per logical call, with `http.request.method`, `server.origin`, a redacted
+`url.full` and `http.response.status_code`. An adapter whose `conn_metrics` capability is
+`native` (aiohttp only) also annotates it with the connection timings of the last attempt
+that could see them: `http.connection.dns_duration`, `http.connection.connect_duration`,
+`http.connection.tls_duration`, `http.connection.pool_wait_duration`,
+`http.connection.reused`, `network.protocol.version`. A phase the adapter cannot observe is
+absent from the span, never zero. Backends:
 `clientwright.adapters.observability.PrometheusClientMetrics(prefix=None, registry=REGISTRY, buckets=...)`
 (cached per registry and prefix) and `OpenTelemetryTracer(tracer_provider=None)`.
 
@@ -450,10 +457,10 @@ What each one will not do:
    (`retry_skipped{reason="non_replayable"}`), never an exception — you get the failed
    response, not an error.
 9. **The engine will not retry a `POST` on its own.** Pass `idempotent=True` at the call
-   site — the extension for httpx, `call_options` elsewhere — and mean it. The reverse is
-   *not* symmetric: `idempotent=False` on a `GET` does not stop a retry, because the method
-   gate refuses only when the method is outside `retry.methods` **and** the flag is false.
-   To stop retrying a method, remove it from `RetryConfig.methods`.
+   site — the extension for httpx, `call_options` elsewhere — and mean it. It is symmetric:
+   `idempotent=False` on a `GET` stops the retry. The flag decides only when it contradicts
+   the method's RFC default (`IDEMPOTENT_METHODS`); when it merely restates it, the gate is
+   `RetryConfig.methods`, which is how you stop retrying a method client-wide.
 10. **The total deadline covers everything and is only hard on async.** Async engines wrap
     each attempt in a cancellation scope; sync engines cannot cancel a blocked socket, so
     they clamp phases and re-check at attempt boundaries — the failure then arrives as

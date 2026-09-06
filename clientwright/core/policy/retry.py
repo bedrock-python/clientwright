@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from random import Random
 
 from ..config import RetryConfig
-from ..model import Attempt, FailureKind, RequestInfo
+from ..model import IDEMPOTENT_METHODS, Attempt, FailureKind, RequestInfo
 
 # A retry whose backoff would land this close to the deadline is pointless.
 _DEADLINE_SLACK = 0.001
@@ -40,6 +40,20 @@ class DefaultRetryPolicy:
             return f"kind_{kind.value}"
         return None
 
+    def _method_allows_retry(self, info: RequestInfo) -> bool:
+        """Two vetoes on repeating this method, either of which is enough.
+
+        ``RequestInfo.idempotent`` restates the method's RFC default unless the
+        CALL SITE overrode it, so a flag disagreeing with ``IDEMPOTENT_METHODS``
+        is the call site talking and decides on its own - that is what makes
+        ``idempotent=True`` unlock a POST and ``idempotent=False`` veto a GET.
+        A flag that only restates the default leaves the decision with the
+        operator's ``retry.methods``.
+        """
+        if info.idempotent != (info.method in IDEMPOTENT_METHODS):
+            return info.idempotent
+        return info.method in self._config.methods
+
     def _backoff(self, attempt_index: int, retry_after: float | None, rng: Random) -> float:
         config = self._config
         if config.respect_retry_after and retry_after is not None:
@@ -67,7 +81,7 @@ class DefaultRetryPolicy:
             return RetryDecision(retry=False, reason="final")
         if len(history) >= config.max_attempts:
             return RetryDecision(retry=False, reason="attempts")
-        if info.method not in config.methods and not info.idempotent:
+        if not self._method_allows_retry(info):
             return RetryDecision(retry=False, reason="method")
         if config.require_replayable_body and not replayable:
             return RetryDecision(retry=False, reason="non_replayable")

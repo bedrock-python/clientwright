@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from clientwright.core.config import ObservabilityConfig
-from clientwright.core.model import Attempt, FailureKind, Outcome, RequestInfo
+from clientwright.core.model import Attempt, ConnMetrics, FailureKind, Outcome, RequestInfo
 from clientwright.core.telemetry.emitter import ClientTelemetry, outcome_label, status_label
 from clientwright.core.telemetry.null import NullMetrics, NullTracer
 from clientwright.core.testing import RecordingMetrics
+from tests.helpers.telemetry import RecordingTracer
 
 INFO = RequestInfo(method="GET", origin="https://a:443", url="https://a/u?token=x", route="/u")
 
@@ -29,7 +30,8 @@ def test__call_lifecycle__records_call_attempts_and_balances_inflight() -> None:
     metrics = RecordingMetrics()
     emitter = telemetry(metrics)
     observation = emitter.call_start(INFO, started=0.0)
-    emitter.attempt_end(INFO, Attempt(index=1, started=0.0, duration=0.1, outcome=Outcome(kind=None, status_code=200)))
+    attempt = Attempt(index=1, started=0.0, duration=0.1, outcome=Outcome(kind=None, status_code=200))
+    emitter.attempt_end(observation, INFO, attempt)
     emitter.call_end(observation, INFO, Outcome(kind=None, status_code=200), duration=0.2)
     assert metrics.inflight_balance == 0
     assert metrics.calls[0]["status"] == "200"
@@ -62,6 +64,42 @@ def test__metrics_disabled_in_config__nothing_recorded() -> None:
     emitter.call_end(observation, INFO, Outcome(kind=None, status_code=200), duration=0.1)
     assert metrics.calls == []
     assert metrics.inflight == []
+
+
+def test__attempt_with_conn_metrics__annotates_the_call_span() -> None:
+    tracer = RecordingTracer()
+    emitter = ClientTelemetry(
+        service="svc",
+        adapter="fake",
+        seam="test",
+        config=ObservabilityConfig(),
+        metrics=None,
+        tracer=tracer,
+    )
+    observation = emitter.call_start(INFO, started=0.0)
+    conn = ConnMetrics(dns=0.01, pool_wait=0.002, reused=True, http_version="2")
+    emitter.attempt_end(observation, INFO, Attempt(1, 0.0, 0.1, Outcome(kind=None, status_code=200), conn=conn))
+    attributes = tracer.spans[0].attributes
+    assert attributes["http.connection.dns_duration"] == 0.01
+    assert attributes["http.connection.pool_wait_duration"] == 0.002
+    assert attributes["http.connection.reused"] is True
+    assert attributes["network.protocol.version"] == "2"
+    assert "http.connection.connect_duration" not in attributes  # an unseen phase is not a zero
+
+
+def test__attempt_without_conn_metrics__leaves_the_span_alone() -> None:
+    tracer = RecordingTracer()
+    emitter = ClientTelemetry(
+        service="svc",
+        adapter="fake",
+        seam="test",
+        config=ObservabilityConfig(),
+        metrics=None,
+        tracer=tracer,
+    )
+    observation = emitter.call_start(INFO, started=0.0)
+    emitter.attempt_end(observation, INFO, Attempt(1, 0.0, 0.1, Outcome(kind=None, status_code=200)))
+    assert set(tracer.spans[0].attributes) == {"http.request.method", "server.origin", "url.full"}
 
 
 def test__labels__helpers() -> None:

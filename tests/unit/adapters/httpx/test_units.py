@@ -203,6 +203,7 @@ def test__legit_native_options__accepted() -> None:
     )
     handle = clientwright.build_handle("httpx", config)
     assert type(handle.client) is httpx.AsyncClient
+    assert handle.report.native_overrides == {"client": ("trust_env",), "transport": ("local_address",)}
 
 
 # --- TLS wiring --------------------------------------------------------------

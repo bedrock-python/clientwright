@@ -74,6 +74,7 @@ from .core.model import IDEMPOTENT_METHODS, CircuitKey, FailureKind, Outcome, Re
 from .core.options import CallOptions, call_options, current_call_options
 from .core.plan import ClientHandle, ClientRuntime, inspect_client
 from .core.registry import register_adapter, registered_adapters, resolve_adapter
+from .core.telemetry.redaction import redact_headers
 
 # The builders are typed ``Any`` deliberately. The whole product is "you get the
 # REAL native client", and the core cannot name ``httpx.AsyncClient`` without
@@ -175,6 +176,7 @@ __all__ = [
     "inspect",
     "inspect_client",
     "is_set",
+    "redact_headers",
     "register_adapter",
     "registered_adapters",
     "resolve_adapter",

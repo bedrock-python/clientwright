@@ -11,6 +11,9 @@ from clientwright.core.policy.retry import DefaultRetryPolicy
 INFO_GET = RequestInfo(method="GET", origin="https://a:443", url="https://a/u")
 INFO_POST = RequestInfo(method="POST", origin="https://a:443", url="https://a/u", idempotent=False)
 INFO_POST_IDEMPOTENT = RequestInfo(method="POST", origin="https://a:443", url="https://a/u", idempotent=True)
+# What every adapter puts in RequestInfo when the call site vetoes a method the RFC calls safe.
+INFO_GET_VETOED = RequestInfo(method="GET", origin="https://a:443", url="https://a/u", idempotent=False)
+INFO_DELETE = RequestInfo(method="DELETE", origin="https://a:443", url="https://a/u", idempotent=True)
 
 
 def attempt(outcome: Outcome, index: int = 1) -> Attempt:
@@ -81,6 +84,34 @@ def test__post_with_idempotency_flag__allowed() -> None:
     policy = DefaultRetryPolicy(RetryConfig(jitter=0.0))
     decision = decide(policy, history(Outcome(kind=FailureKind.CONNECT_TIMEOUT)), info=INFO_POST_IDEMPOTENT)
     assert decision.retry
+
+
+def test__get_with_idempotent_false__denied_by_method() -> None:
+    policy = DefaultRetryPolicy(RetryConfig(jitter=0.0))
+    decision = decide(policy, history(Outcome(kind=FailureKind.READ_TIMEOUT)), info=INFO_GET_VETOED)
+    assert not decision.retry
+    assert decision.reason == "method"  # the flag vetoes in both directions
+
+
+def test__method_removed_from_config__denied_although_the_method_is_idempotent() -> None:
+    policy = DefaultRetryPolicy(RetryConfig(methods=frozenset({"GET"})))
+    decision = decide(policy, history(Outcome(kind=FailureKind.READ_TIMEOUT)), info=INFO_DELETE)
+    assert not decision.retry
+    assert decision.reason == "method"
+
+
+def test__post_added_to_config_methods__retried_without_a_call_site_flag() -> None:
+    policy = DefaultRetryPolicy(RetryConfig(jitter=0.0, methods=frozenset({"GET", "POST"})))
+    decision = decide(policy, history(Outcome(kind=FailureKind.CONNECT_TIMEOUT)), info=INFO_POST)
+    assert decision.retry  # the operator widened the list; no call site had to vouch
+
+
+def test__call_site_flag__overrides_the_config_only_when_it_contradicts_the_method() -> None:
+    policy = DefaultRetryPolicy(RetryConfig(jitter=0.0, methods=frozenset({"HEAD"})))
+    vouched = decide(policy, history(Outcome(kind=FailureKind.CONNECT_TIMEOUT)), info=INFO_POST_IDEMPOTENT)
+    assert vouched.retry  # "this POST is safe" is knowledge the config cannot have
+    restated = decide(policy, history(Outcome(kind=FailureKind.CONNECT_TIMEOUT)), info=INFO_GET)
+    assert not restated.retry  # a flag that only restates GET's default leaves the config in charge
 
 
 def test__non_replayable_body__denied() -> None:

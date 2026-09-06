@@ -81,4 +81,9 @@ def validate_native(
     return validated
 
 
-__all__ = ["validate_native"]
+def accepted_overrides(validated: Mapping[str, Mapping[str, object]]) -> dict[str, tuple[str, ...]]:
+    """Report shape of validated passthrough: slot -> the keys that survived validation."""
+    return {slot: tuple(sorted(values)) for slot, values in validated.items() if values}
+
+
+__all__ = ["accepted_overrides", "validate_native"]

@@ -93,7 +93,15 @@ class TooManyRedirectsError(CallError):
 
 
 class NotReplayableError(CallError):
-    """The request body cannot be replayed, so the required repeat is impossible."""
+    """A body that cannot be replayed made a required repeat impossible.
+
+    The engine never raises this. A non-replayable body ends the call with the
+    response it already has plus a ``retry_skipped{reason="non_replayable"}``
+    counter, so ``except NotReplayableError`` around a call never fires. It is
+    part of the public ``CallError`` family for adapters and callers that choose
+    to make that refusal fatal themselves; the adapter translators pass it
+    through unchanged rather than dressing it in an SDK error class.
+    """
 
 
 __all__ = [

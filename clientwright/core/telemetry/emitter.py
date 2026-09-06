@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from ..config import ObservabilityConfig
 from ..contracts.observability import ClientMetricsProtocol, SpanProtocol, TracerProtocol
-from ..model import Attempt, Outcome, RequestInfo
+from ..model import Attempt, ConnMetrics, Outcome, RequestInfo
 from .names import OUTCOME_SUCCESS, ROUTE_UNKNOWN, STATUS_NONE
 from .null import NullMetrics, NullTracer
 from .redaction import REDACTED, redact_url
@@ -97,7 +97,7 @@ class ClientTelemetry:
             )
         return CallObservation(span=span, started=started)
 
-    def attempt_end(self, info: RequestInfo, attempt: Attempt) -> None:
+    def attempt_end(self, observation: CallObservation, info: RequestInfo, attempt: Attempt) -> None:
         self._metrics.record_attempt(
             service=self._service,
             adapter=self._adapter,
@@ -107,6 +107,25 @@ class ClientTelemetry:
             outcome=outcome_label(attempt.outcome),
             duration=attempt.duration,
         )
+        if attempt.conn is not None:
+            self._record_conn(observation.span, attempt.conn)
+
+    def _record_conn(self, span: SpanProtocol, conn: ConnMetrics) -> None:
+        """Connection timings onto the call span; the last attempt that saw them wins.
+
+        The metric families are a frozen contract with no room for them, so the
+        span is where an adapter that can observe them surfaces them.
+        """
+        for key, value in (
+            ("http.connection.dns_duration", conn.dns),
+            ("http.connection.connect_duration", conn.connect),
+            ("http.connection.tls_duration", conn.tls),
+            ("http.connection.pool_wait_duration", conn.pool_wait),
+            ("http.connection.reused", conn.reused),
+            ("network.protocol.version", conn.http_version),
+        ):
+            if value is not None:
+                span.set_attribute(key, value)
 
     def redirect_hop(self, observation: CallObservation) -> None:
         observation.hops += 1

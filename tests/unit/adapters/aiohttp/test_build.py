@@ -16,6 +16,7 @@ from clientwright.adapters.aiohttp.adapter import _proxy_router, _ssl_argument  
 from clientwright.core.capabilities import Capability  # noqa: E402
 from clientwright.core.config import (  # noqa: E402
     ClientConfig,
+    NativeOptions,
     PoolConfig,
     ProxyConfig,
     TimeoutConfig,
@@ -108,6 +109,20 @@ async def test__per_host_limit__applied_natively_on_the_connector() -> None:
     try:
         assert Capability.POOL_LIMIT_PER_HOST in handle.report.applied_natively
         assert handle.client.connector.limit_per_host == 5
+    finally:
+        assert handle.aclose is not None
+        await handle.aclose()
+
+
+async def test__native_passthrough__applied_and_listed_in_the_report() -> None:
+    config = ClientConfig(
+        service_name="s",
+        native=NativeOptions.of(session={"auto_decompress": False}, connector={"use_dns_cache": False}),
+    )
+    handle = clientwright.build_handle("aiohttp", config)
+    try:
+        assert handle.report.native_overrides == {"session": ("auto_decompress",), "connector": ("use_dns_cache",)}
+        assert handle.client.connector.use_dns_cache is False
     finally:
         assert handle.aclose is not None
         await handle.aclose()
