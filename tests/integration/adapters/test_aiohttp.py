@@ -245,8 +245,13 @@ async def test__failure_paths__never_leak_inflight(
 async def test__conn_metrics__annotate_the_call_span(origin: OriginServer) -> None:
     tracer = RecordingTracer()
     client = await build(base_config(origin), AdapterDeps(tracer=tracer))
-    await client.get("/echo")
-    await client.get("/echo")
+    # Read each body before the next call: aiohttp returns a connection to the
+    # pool on release, so an unread response leaves the second call racing the
+    # first one's cleanup for it -- which is how this test used to flake.
+    first = await client.get("/echo")
+    await first.read()
+    second = await client.get("/echo")
+    await second.read()
     await client.close()
     fresh, pooled = (span.attributes for span in tracer.spans)
     assert fresh["http.connection.connect_duration"] >= 0.0  # TraceConfig timed the handshake
