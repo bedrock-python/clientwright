@@ -9,8 +9,8 @@
 | Package | `clientwright` on PyPI, import root `clientwright` |
 | Requires | Python 3.12+. The core has zero dependencies; every adapter needs its own SDK |
 | Install | `pip install "clientwright[httpx]"` · extras: `httpx`, `httpx2`, `aiohttp`, `requests`, `urllib3`, `metrics`, `tracing`, `observability`, `deadline`, `dishka`, `all` |
-| Async | `build("httpx" \| "httpx2" \| "aiohttp", config)` — returns the SDK's own async client |
-| Sync | `build_sync("httpx" \| "httpx2" \| "requests" \| "urllib3", config)` — returns the SDK's own sync client |
+| Async | `build("httpx" | "httpx2" | "aiohttp", config)` — returns the SDK's own async client |
+| Sync | `build_sync("httpx" | "httpx2" | "requests" | "urllib3", config)` — returns the SDK's own sync client |
 | Source | <https://github.com/bedrock-python/clientwright> |
 
 ## How to read this page
@@ -160,7 +160,7 @@ Everything in this section is exported from `clientwright` unless the table says
 | `build_sync` | `build_sync(adapter, config, deps=None)` | the SDK's own **sync** client, typed `Any` |
 | `build_handle` | same arguments | `ClientHandle[Any]` (async) |
 | `build_sync_handle` | same arguments | `ClientHandle[Any]` (sync) |
-| `inspect` / `inspect_client` | `inspect(client)` | `ClientHandle[Any] \| None` — `None` for a foreign object |
+| `inspect` / `inspect_client` | `inspect(client)` | `ClientHandle[Any] | None` — `None` for a foreign object |
 | `registered_adapters` | `registered_adapters()` | `('aiohttp', 'httpx', 'httpx2', 'requests', 'urllib3')` |
 | `resolve_adapter` | `resolve_adapter(name)` | the adapter class; `UnknownAdapterError` if unknown |
 | `register_adapter` | `register_adapter(name, "module.path:Class", "module.path:CAPABILITIES")` | `None` |
@@ -370,7 +370,7 @@ Metric names and label sets are a frozen wire contract in
 | `http_client_inflight` | gauge | ±1 around each logical call |
 | `http_client_circuit_state` | gauge | on a breaker transition, **only when the adapter built the runtime** |
 | `http_client_redirect_hops_total` | counter | per followed hop |
-| `http_client_retry_skipped_total` | counter | `reason=method\|non_replayable\|deadline\|budget` |
+| `http_client_retry_skipped_total` | counter | `reason=method|non_replayable|deadline|budget` |
 | `http_client_uninstrumented_calls_total` | counter | aiohttp only: a request that bypassed the middleware |
 
 `outcome` is `success` or a `FailureKind` value; `status` is the numeric status or the
