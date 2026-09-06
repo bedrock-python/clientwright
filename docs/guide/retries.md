@@ -63,6 +63,9 @@ A retry-worthy failure is necessary but not sufficient. In order:
 3. **Replayable body.** Before the first send the engine freezes the request body
    (buffers a stream, if there is one). A body that cannot be replayed — a one-shot
    generator, an open socket — vetoes every repeat. No half-sent uploads, ever.
+   The veto is a counter and the response you already have, never an exception:
+   `NotReplayableError` is exported for code that wants to make it fatal itself,
+   and the engine does not raise it.
 4. **The deadline.** A backoff sleep that would land past the remaining total is
    pointless; the engine returns the failure now instead of burning the budget.
 5. **The retry budget.** See below.
