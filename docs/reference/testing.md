@@ -1,3 +1,7 @@
+---
+copy_page: false
+---
+
 # Testing
 
 Stdlib-only instruments, shipped with the library so your integration tests and
