@@ -38,6 +38,15 @@ handle = inspect(client)  # what actually got applied
 print(handle.report.dropped)  # config the adapter could not express
 ```
 
+> [!TIP]
+> **Building this with an AI assistant?** Hand it
+> **[one page](https://bedrock-python.github.io/clientwright/agents/)** instead of the
+> whole site: the whole public API with its real defaults, where the boundary between the
+> core engine and an adapter runs, the rules that break code when they are broken, the
+> mistakes models actually make with this API, and a map of which page to fetch for the
+> rest. Every docs page is also served as raw Markdown at its own URL, and a **Copy page**
+> button at the top of each one hands it straight to a chat window.
+
 ## Why
 
 - **Instrumentation under the public API.** The seam sits in the transport

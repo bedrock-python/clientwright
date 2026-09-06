@@ -10,8 +10,12 @@ copyright = "Copyright &copy; 2026 Alex Shalaev"
 docs_dir = "docs"
 site_dir = "site"
 
+extra_css = ["assets/stylesheets/copy-page.css"]
+extra_javascript = ["assets/javascripts/copy-page.js"]
+
 nav = [
     { "Home" = "index.md" },
+    { "For AI agents" = "agents.md" },
     { "Learn" = [
         { "Why clientwright" = "learn/why.md" },
         { "Installation" = "learn/install.md" },
@@ -58,6 +62,7 @@ nav = [
 ]
 
 [project.theme]
+custom_dir = "overrides"
 features = [
     "content.code.annotate",
     "content.code.copy",
