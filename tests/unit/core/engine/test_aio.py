@@ -19,7 +19,7 @@ from clientwright.core.config import (
 )
 from clientwright.core.contracts.adapter import AdapterDeps
 from clientwright.core.errors import CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
-from clientwright.core.model import ResolvedTimeouts
+from clientwright.core.model import ConnMetrics, ResolvedTimeouts
 from clientwright.core.policy.circuit import CircuitState
 from clientwright.core.testing import ManualClock
 from tests.helpers.engine import (
@@ -32,6 +32,7 @@ from tests.helpers.engine import (
     make_config,
     redirect_response,
 )
+from tests.helpers.telemetry import RecordingTracer
 from tests.helpers.views import FakeResponse
 
 # --- flow ---
@@ -284,3 +285,28 @@ async def test__per_origin_limiter__bounds_concurrent_sends() -> None:
         harness.engine.run(EngineRequest(), send),
     )
     assert peak == 1  # POOL_LIMIT_PER_HOST is EMULATED: the engine serialized the origin
+
+
+# --- connection metrics ---
+
+
+async def test__conn_metrics__land_on_the_attempt_and_the_call_span() -> None:
+    tracer = RecordingTracer()
+    conn = ConnMetrics(dns=0.01, connect=0.02, pool_wait=0.003, reused=False, http_version="1.1")
+    harness = Harness(make_config(), tracer=tracer, conn=conn)
+    await harness.engine.run(EngineRequest(), as_async_send(ScriptedSend(FakeResponse(200))))
+    attributes = tracer.spans[0].attributes
+    assert attributes["http.connection.dns_duration"] == 0.01
+    assert attributes["http.connection.connect_duration"] == 0.02
+    assert attributes["http.connection.pool_wait_duration"] == 0.003
+    assert attributes["http.connection.reused"] is False
+    assert attributes["network.protocol.version"] == "1.1"
+    assert "http.connection.tls_duration" not in attributes  # unset fields stay off the span
+
+
+async def test__failed_attempt_without_response__no_conn_lookup() -> None:
+    tracer = RecordingTracer()
+    harness = Harness(make_config(retry=None), tracer=tracer, conn=ConnMetrics(dns=0.5))
+    with pytest.raises(ConnectionError):
+        await harness.engine.run(EngineRequest(), as_async_send(ScriptedSend(ConnectionError("down"))))
+    assert "http.connection.dns_duration" not in tracer.spans[0].attributes

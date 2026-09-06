@@ -21,6 +21,7 @@ from clientwright.adapters.aiohttp import (  # noqa: E402
 )
 from clientwright.core.config import CircuitBreakerConfig  # noqa: E402
 from clientwright.core.testing import OriginServer, RecordingMetrics  # noqa: E402
+from tests.helpers.telemetry import RecordingTracer  # noqa: E402
 
 from ..conftest import base_config  # noqa: E402
 
@@ -239,3 +240,16 @@ async def test__failure_paths__never_leak_inflight(
     statuses = [record["status"] for record in metrics.calls]
     assert statuses.count("none") == 2  # both failures observed with status=none
     await client.close()
+
+
+async def test__conn_metrics__annotate_the_call_span(origin: OriginServer) -> None:
+    tracer = RecordingTracer()
+    client = await build(base_config(origin), AdapterDeps(tracer=tracer))
+    await client.get("/echo")
+    await client.get("/echo")
+    await client.close()
+    fresh, pooled = (span.attributes for span in tracer.spans)
+    assert fresh["http.connection.connect_duration"] >= 0.0  # TraceConfig timed the handshake
+    assert fresh["http.connection.reused"] is False
+    assert pooled["http.connection.reused"] is True  # second call took the pooled connection
+    assert "http.connection.connect_duration" not in pooled

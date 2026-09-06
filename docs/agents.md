@@ -374,7 +374,15 @@ Metric names and label sets are a frozen wire contract in
 | `http_client_uninstrumented_calls_total` | counter | aiohttp only: a request that bypassed the middleware |
 
 `outcome` is `success` or a `FailureKind` value; `status` is the numeric status or the
-string `none`; `route` is `unknown` until a call site sets it. Backends:
+string `none`; `route` is `unknown` until a call site sets it.
+
+One `CLIENT` span per logical call, with `http.request.method`, `server.origin`, a redacted
+`url.full` and `http.response.status_code`. An adapter whose `conn_metrics` capability is
+`native` (aiohttp only) also annotates it with the connection timings of the last attempt
+that could see them: `http.connection.dns_duration`, `http.connection.connect_duration`,
+`http.connection.tls_duration`, `http.connection.pool_wait_duration`,
+`http.connection.reused`, `network.protocol.version`. A phase the adapter cannot observe is
+absent from the span, never zero. Backends:
 `clientwright.adapters.observability.PrometheusClientMetrics(prefix=None, registry=REGISTRY, buckets=...)`
 (cached per registry and prefix) and `OpenTelemetryTracer(tracer_provider=None)`.
 

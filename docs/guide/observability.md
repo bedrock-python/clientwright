@@ -68,6 +68,15 @@ the upstream's server span becomes its child, not its sibling. Attempts and
 redirect hops stay inside the one span: your trace waterfall shows the call as
 your caller experienced it.
 
+An adapter that can observe connection timings (`conn_metrics` in the
+[capability matrix](capabilities.md) — aiohttp today) adds them to the span:
+`http.connection.dns_duration`, `http.connection.connect_duration`,
+`http.connection.tls_duration`, `http.connection.pool_wait_duration`,
+`http.connection.reused` and `network.protocol.version`. A phase the adapter did
+not see is left off the span rather than reported as a zero, and on a retried
+call the last attempt that saw them wins — the reused-connection attempt shows
+no connect duration, which is the point.
+
 ## Logs
 
 The built-in logging channel writes structured records to the standard `logging`

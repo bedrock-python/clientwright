@@ -15,6 +15,7 @@ import pytest
 from clientwright.core.config import CircuitBreakerConfig, PoolConfig, RedirectMode
 from clientwright.core.contracts.adapter import AdapterDeps
 from clientwright.core.errors import CircuitOpenError, DeadlineExceededError
+from clientwright.core.model import ConnMetrics
 from tests.helpers.engine import (
     EngineRequest,
     FixedDeadlineSource,
@@ -25,6 +26,7 @@ from tests.helpers.engine import (
     make_config,
     redirect_response,
 )
+from tests.helpers.telemetry import RecordingTracer
 from tests.helpers.views import FakeResponse
 
 
@@ -141,3 +143,14 @@ def test__per_origin_limiter__bounds_concurrent_sends_across_threads() -> None:
     for thread in threads:
         thread.join()
     assert peak == 1
+
+
+def test__conn_metrics__land_on_the_attempt_and_the_call_span() -> None:
+    tracer = RecordingTracer()
+    conn = ConnMetrics(dns=0.01, connect=0.02, reused=True)
+    harness = Harness(make_config(), sync=True, tracer=tracer, conn=conn)
+    harness.engine.run(EngineRequest(), as_sync_send(ScriptedSend(FakeResponse(200))))
+    attributes = tracer.spans[0].attributes
+    assert attributes["http.connection.dns_duration"] == 0.01
+    assert attributes["http.connection.connect_duration"] == 0.02
+    assert attributes["http.connection.reused"] is True

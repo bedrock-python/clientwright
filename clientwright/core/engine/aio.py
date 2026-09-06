@@ -214,10 +214,11 @@ class AsyncAttemptEngine:
                 duration=runtime.clock() - attempt_started,
                 outcome=outcome,
                 hop=observation.hops,
+                conn=self._norm.conn_metrics(response) if response is not None else None,
             )
             history.append(attempt)
             if plan.emit_attempt_metrics:
-                self._telemetry.attempt_end(info, attempt)
+                self._telemetry.attempt_end(observation, info, attempt)
             if outcome.kind is FailureKind.TOTAL_TIMEOUT and deadline.expired:
                 raise DeadlineExceededError(deadline.total or 0.0) from outcome.exception
             if plan.retry_policy is None:

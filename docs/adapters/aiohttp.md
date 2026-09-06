@@ -77,5 +77,9 @@ not as chores:
   httpx).
 - **Pool wait**: folded by aiohttp into the connect phase — `pool_timeout` is
   declared collapsed into `connect_timeout`.
+- **Connection timings**: the only adapter with `conn_metrics: native`. The
+  `TraceConfig` times DNS, connect and pool wait and records whether the
+  connection was reused; the engine hangs them on the call span as
+  `http.connection.*` — see [Observability](../guide/observability.md#traces).
 - **Errors**: dual-family as everywhere — `AiohttpCircuitOpenError` is both a
   `CircuitOpenError` and an `aiohttp.ClientError`.
