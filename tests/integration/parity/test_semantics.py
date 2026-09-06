@@ -144,6 +144,39 @@ def test__post_idempotency_gate__same_on_every_adapter_sync(adapter_name: str, o
         driver.close(client)
 
 
+# --- GET: the call-site veto stops a retry the method would have allowed -----
+
+
+@pytest.mark.parametrize("adapter_name", adapter_params(ASYNC_ADAPTERS))
+async def test__get_idempotency_veto__same_on_every_adapter(adapter_name: str, origin: OriginServer) -> None:
+    driver = get_driver(adapter_name)
+    metrics, deps = fresh_deps()
+    client = driver.build(battery_config(driver, origin, retry=FAST_RETRY), deps)
+    path = flaky_path(adapter_name, 1)
+    try:
+        response = await driver.request(client, origin.url, "GET", path, idempotent=False)
+    finally:
+        await driver.close(client)
+    assert response.status == 503  # the call site said this GET must not be repeated
+    assert origin.request_count(path) == 1
+    assert [record["reason"] for record in metrics.retry_skips] == ["method"]
+
+
+@pytest.mark.parametrize("adapter_name", adapter_params(SYNC_ADAPTERS))
+def test__get_idempotency_veto__same_on_every_adapter_sync(adapter_name: str, origin: OriginServer) -> None:
+    driver = get_driver(adapter_name)
+    metrics, deps = fresh_deps()
+    client = driver.build(battery_config(driver, origin, retry=FAST_RETRY), deps)
+    path = flaky_path(adapter_name, 1)
+    try:
+        response = driver.request(client, origin.url, "GET", path, idempotent=False)
+    finally:
+        driver.close(client)
+    assert response.status == 503
+    assert origin.request_count(path) == 1
+    assert [record["reason"] for record in metrics.retry_skips] == ["method"]
+
+
 # --- circuit breaker: one 5xx signal, local rejection, origin untouched ------
 
 

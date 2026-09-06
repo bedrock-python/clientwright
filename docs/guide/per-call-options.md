@@ -87,7 +87,9 @@ URL.
 for a non-idempotent method. It is a statement about *your* semantics ("repeating
 this request is safe"), not a request for more aggressive retrying — all other
 gates (attempts, body replayability, deadline, budget) still apply. `False` works
-in the other direction: it forbids retrying a normally-idempotent method.
+in the other direction: it forbids retrying a normally-idempotent method — the
+`GET` that triggers a report run, the `DELETE` your upstream is not really
+idempotent about.
 
 !!! warning "Say it truthfully"
 

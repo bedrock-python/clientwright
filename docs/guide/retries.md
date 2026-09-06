@@ -55,7 +55,11 @@ A retry-worthy failure is necessary but not sufficient. In order:
 2. **Idempotency.** `GET`, `HEAD`, `PUT`, `DELETE`, `OPTIONS`, `TRACE` pass by
    method. A `POST` is refused — unless the *call site* vouches for it via the
    [per-call idempotency flag](per-call-options.md), which is the honest place for
-   that knowledge to live.
+   that knowledge to live. The flag speaks in both directions: `idempotent=False`
+   refuses a method the table would have allowed. Narrowing for the whole client
+   is `RetryConfig.methods` — a method outside that set is not retried, and a call
+   site can only override it by contradicting the method's default, never by
+   restating it.
 3. **Replayable body.** Before the first send the engine freezes the request body
    (buffers a stream, if there is one). A body that cannot be replayed — a one-shot
    generator, an open socket — vetoes every repeat. No half-sent uploads, ever.

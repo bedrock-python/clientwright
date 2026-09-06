@@ -457,10 +457,10 @@ What each one will not do:
    (`retry_skipped{reason="non_replayable"}`), never an exception — you get the failed
    response, not an error.
 9. **The engine will not retry a `POST` on its own.** Pass `idempotent=True` at the call
-   site — the extension for httpx, `call_options` elsewhere — and mean it. The reverse is
-   *not* symmetric: `idempotent=False` on a `GET` does not stop a retry, because the method
-   gate refuses only when the method is outside `retry.methods` **and** the flag is false.
-   To stop retrying a method, remove it from `RetryConfig.methods`.
+   site — the extension for httpx, `call_options` elsewhere — and mean it. It is symmetric:
+   `idempotent=False` on a `GET` stops the retry. The flag decides only when it contradicts
+   the method's RFC default (`IDEMPOTENT_METHODS`); when it merely restates it, the gate is
+   `RetryConfig.methods`, which is how you stop retrying a method client-wide.
 10. **The total deadline covers everything and is only hard on async.** Async engines wrap
     each attempt in a cancellation scope; sync engines cannot cancel a blocked socket, so
     they clamp phases and re-check at attempt boundaries — the failure then arrives as
