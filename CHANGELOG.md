@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.2.1...clientwright-v0.2.2) (2026-09-06)
+
+
+### Bug Fixes
+
+* bound the response body by the total on the httpx family ([#28](https://github.com/bedrock-python/clientwright/issues/28)) ([5767b89](https://github.com/bedrock-python/clientwright/commit/5767b891595c7385887ecb40f2bdbf01ee615977)), closes [#25](https://github.com/bedrock-python/clientwright/issues/25)
+* give the attempt ceiling its own retryable kind and adapter error ([#26](https://github.com/bedrock-python/clientwright/issues/26)) ([e36beeb](https://github.com/bedrock-python/clientwright/commit/e36beeba169355cb7b94a1484c032a77a12995b6)), closes [#24](https://github.com/bedrock-python/clientwright/issues/24)
+
 ## [0.2.1](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.2.0...clientwright-v0.2.1) (2026-09-06)
 
 
