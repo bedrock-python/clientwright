@@ -17,6 +17,7 @@ import clientwright  # noqa: E402
 from clientwright.core.capabilities import Capability  # noqa: E402
 from clientwright.core.config import (  # noqa: E402
     ClientConfig,
+    NativeOptions,
     PoolConfig,
     ProxyConfig,
     TimeoutConfig,
@@ -76,6 +77,16 @@ def test__non_blocking_pool__never_passes_a_pool_timeout(monkeypatch: pytest.Mon
 
 
 # --- capability reporting ----------------------------------------------------
+
+
+def test__native_passthrough__listed_in_the_report() -> None:
+    config = ClientConfig(service_name="s", native=NativeOptions.of(manager={"strict": True}))
+    handle = clientwright.build_sync_handle("urllib3", config)
+    try:
+        assert handle.report.native_overrides == {"manager": ("strict",)}
+    finally:
+        assert handle.close is not None
+        handle.close()
 
 
 def test__blocking_pool__pool_knobs_reported_applied_natively() -> None:

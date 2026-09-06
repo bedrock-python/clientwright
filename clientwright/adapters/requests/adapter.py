@@ -25,7 +25,7 @@ from ...core.engine.suppress import is_suppressed, suppressed
 from ...core.engine.sync import SyncAttemptEngine
 from ...core.errors import UnsupportedCapabilityError
 from ...core.model import ResolvedTimeouts
-from ...core.native import validate_native
+from ...core.native import accepted_overrides, validate_native
 from ...core.plan import CallPlan, ClientHandle, ClientRuntime, compile_plan, register_handle
 from ...core.telemetry.emitter import ClientTelemetry
 from ._imports import HTTPAdapter, requests, urllib3
@@ -111,7 +111,7 @@ class RequestsAdapter:
             config_conflicts={},
         )
 
-    def _compile(self, config: ClientConfig) -> CallPlan:
+    def _compile(self, config: ClientConfig, native: Mapping[str, Mapping[str, Any]]) -> CallPlan:
         applied = {Capability.TIMEOUT_CONNECT, Capability.TIMEOUT_READ, Capability.REDIRECTS_OWNABLE}
         if resolve(config.pool.max_connections_per_host, None) is not None:
             applied.add(Capability.POOL_LIMIT_PER_HOST)
@@ -136,6 +136,7 @@ class RequestsAdapter:
             applied_natively=frozenset(applied),
             emulated=frozenset(emulated),
             dropped=dropped,
+            native_overrides=accepted_overrides(native),
         )
         plan.report.enforce(config.on_unsupported)
         return plan
@@ -155,7 +156,7 @@ class RequestsAdapter:
         runtime = deps.runtime or ClientRuntime.for_config(
             config, clock=deps.clock, circuit_listener=telemetry.circuit_state_changed
         )
-        plan = self._compile(config)
+        plan = self._compile(config, native)
         engine = SyncAttemptEngine(
             plan=plan,
             runtime=runtime,

@@ -30,7 +30,7 @@ from ..core.engine.aio import AsyncAttemptEngine
 from ..core.engine.sync import SyncAttemptEngine
 from ..core.errors import CallError, CircuitOpenError, DeadlineExceededError, TooManyRedirectsError
 from ..core.model import IDEMPOTENT_METHODS, ConnMetrics, FailureKind, Outcome, RequestInfo, ResolvedTimeouts, origin_of
-from ..core.native import validate_native
+from ..core.native import accepted_overrides, validate_native
 from ..core.plan import CallPlan, ClientHandle, ClientRuntime, compile_plan, register_handle
 from ..core.policy.timeout import base_timeouts
 from ..core.telemetry.emitter import ClientTelemetry
@@ -622,7 +622,7 @@ class FamilyAdapter:
             config_conflicts={},
         )
 
-    def _compile(self, config: ClientConfig, *, sync: bool) -> CallPlan:
+    def _compile(self, config: ClientConfig, native: Mapping[str, Mapping[str, Any]], *, sync: bool) -> CallPlan:
         applied = {
             Capability.TIMEOUT_CONNECT,
             Capability.TIMEOUT_READ,
@@ -657,6 +657,7 @@ class FamilyAdapter:
             applied_natively=frozenset(applied),
             emulated=frozenset(emulated),
             dropped=dropped,
+            native_overrides=accepted_overrides(native),
         )
         plan.report.enforce(config.on_unsupported)
         return plan
@@ -699,7 +700,7 @@ class FamilyAdapter:
         runtime = deps.runtime or ClientRuntime.for_config(
             config, clock=deps.clock, circuit_listener=telemetry.circuit_state_changed
         )
-        plan = self._compile(config, sync=False)
+        plan = self._compile(config, native, sync=False)
         base = base_timeouts(config.timeout, NATIVE_TIMEOUT_DEFAULTS)
         engine = AsyncAttemptEngine(
             plan=plan,
@@ -756,7 +757,7 @@ class FamilyAdapter:
         runtime = deps.runtime or ClientRuntime.for_config(
             config, clock=deps.clock, circuit_listener=telemetry.circuit_state_changed
         )
-        plan = self._compile(config, sync=True)
+        plan = self._compile(config, native, sync=True)
         base = base_timeouts(config.timeout, NATIVE_TIMEOUT_DEFAULTS)
         engine = SyncAttemptEngine(
             plan=plan,

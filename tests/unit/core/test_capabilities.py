@@ -22,7 +22,7 @@ from clientwright.core.errors import (
     UnsupportedCapabilityError,
 )
 from clientwright.core.model import FailureKind
-from clientwright.core.native import validate_native
+from clientwright.core.native import accepted_overrides, validate_native
 
 
 def _target(*, timeout: float = 1.0, limits: object = None) -> None:
@@ -87,6 +87,14 @@ def test__conflict_with_explicit_config__raises() -> None:
             NativeOptions.of(client={"limits": object()}),
             config_conflicts={"client": {"limits": "pool.max_connections"}},
         )
+
+
+# --- accepted_overrides ---
+
+
+def test__accepted_overrides__lists_sorted_keys_per_slot_and_skips_empty_slots() -> None:
+    validated = validate(NativeOptions.of(client={"timeout": 5.0, "limits": None}, transport={}))
+    assert accepted_overrides(validated) == {"client": ("limits", "timeout")}
 
 
 CAPS = AdapterCapabilities(

@@ -147,6 +147,7 @@ def test__native_session_attributes__applied_to_the_built_session() -> None:
     handle = clientwright.build_sync_handle("requests", config)
     try:
         assert handle.client.trust_env is False
+        assert handle.report.native_overrides == {"session": ("trust_env",)}
     finally:
         assert handle.close is not None
         handle.close()

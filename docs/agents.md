@@ -306,9 +306,8 @@ and `redirects="natvie"` raises `ValueError` instead of silently doing nothing.
 `collapses`, `notes`, `.support_of(capability)`.
 `ConfigApplicationReport`: `adapter`, `applied_natively`, `emulated`, `dropped`,
 `dead_retryable_kinds`, `collapsed_kinds`, `native_overrides`, `.has_issues`, `.issues()`,
-`.enforce(policy)`. `native_overrides` is part of the record's shape but no shipped adapter
-fills it in — read the accepted passthrough off your own `NativeOptions`, not off the
-report.
+`.enforce(policy)`. `native_overrides` is `{slot: (accepted key, ...)}` — the passthrough
+that survived validation, per slot, keys sorted; a slot you passed nothing into is absent.
 
 ### Per-call options
 
