@@ -34,6 +34,7 @@ class Capability(StrEnum):
     TIMEOUT_WRITE = "timeout_write"
     TIMEOUT_POOL = "timeout_pool"
     DEADLINE_HARD = "deadline_hard"
+    DEADLINE_COVERS_BODY = "deadline_covers_body"
     POOL_LIMIT_TOTAL = "pool_limit_total"
     POOL_LIMIT_PER_HOST = "pool_limit_per_host"
     KEEPALIVE = "keepalive"

@@ -6,6 +6,7 @@ from collections.abc import Callable
 
 from .._httpx_shared import AsyncFamilyNormalizer, AsyncTimedStreamMixin
 from ._imports import httpx
+from .errors import translate_call_error
 from .views import HttpxRequestView
 
 
@@ -21,6 +22,7 @@ class AsyncHttpxNormalizer(AsyncFamilyNormalizer):
             sdk=httpx,
             request_view=lambda native: HttpxRequestView(native, default_timeout),
             timed_stream=_TimedAsyncStream,
+            translate=translate_call_error,
         )
 
 

@@ -15,10 +15,12 @@ aiohttp = pytest.importorskip("aiohttp", reason="requires the [aiohttp] extra")
 import clientwright  # noqa: E402
 from clientwright import AdapterDeps, ClientConfig, RetryConfig, TimeoutConfig  # noqa: E402
 from clientwright.adapters.aiohttp import (  # noqa: E402
+    CAPABILITIES,
     AiohttpCircuitOpenError,
     AiohttpTooManyRedirectsError,
     call_options,
 )
+from clientwright.core.capabilities import Capability, Support  # noqa: E402
 from clientwright.core.config import CircuitBreakerConfig  # noqa: E402
 from clientwright.core.testing import OriginServer, RecordingMetrics  # noqa: E402
 from tests.helpers.telemetry import RecordingTracer  # noqa: E402
@@ -182,6 +184,17 @@ async def test__deadline_header__stamped_with_remaining_budget(origin: OriginSer
     payload = await response.json()
     stamped = int(payload["headers"]["x-deadline-ms"])
     assert 0 < stamped <= 30_000
+    await client.close()
+
+
+async def test__dripping_body__outside_the_seam_by_declaration(origin: OriginServer, deps: AdapterDeps) -> None:
+    # The middleware returns at the headers and the body is aiohttp's own
+    # StreamReader: the total cannot reach it, and the record says so.
+    assert CAPABILITIES.support_of(Capability.DEADLINE_COVERS_BODY) is Support.ABSENT
+    config = base_config(origin, timeout=TimeoutConfig(total=0.3, connect=1.0), retry=None)
+    client = await build(config, deps)
+    response = await client.get("/drip/3/0.2")
+    assert await response.read() == b"xxx"  # 0.6 s of body arrives after a 0.3 s total
     await client.close()
 
 

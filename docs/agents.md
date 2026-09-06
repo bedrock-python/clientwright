@@ -295,7 +295,7 @@ exports.
 | `CallerOverride` | `CALLER_WINS`, `CONFIG_WINS`, `RAISE` |
 | `UnsupportedPolicy` | `IGNORE`, `WARN`, `STRICT` |
 | `Support` | `NATIVE`, `EMULATED`, `DEGRADED`, `ABSENT` |
-| `Capability` | `timeout_total`, `timeout_attempt`, `timeout_connect`, `timeout_read`, `timeout_write`, `timeout_pool`, `deadline_hard`, `pool_limit_total`, `pool_limit_per_host`, `keepalive`, `pool_metrics`, `conn_metrics`, `redirects_ownable`, `native_retry_disableable`, `per_call_options`, `retrofit`, `exact_native_type`, `balancer`, `http2`, `http3`, `proxy` |
+| `Capability` | `timeout_total`, `timeout_attempt`, `timeout_connect`, `timeout_read`, `timeout_write`, `timeout_pool`, `deadline_hard`, `deadline_covers_body`, `pool_limit_total`, `pool_limit_per_host`, `keepalive`, `pool_metrics`, `conn_metrics`, `redirects_ownable`, `native_retry_disableable`, `per_call_options`, `retrofit`, `exact_native_type`, `balancer`, `http2`, `http3`, `proxy` |
 | `SeamGranularity` | `HOP`, `LOGICAL` |
 | `DurationBoundary` | `HEADERS`, `FULL` |
 
@@ -351,7 +351,7 @@ task-local and thread-local, inherited by tasks started inside it, invisible to 
 
 `OriginServer` routes: `/echo`, `/status/{code}`, `/slow/{seconds}`, `/redirect/{n}`,
 `/redirect-loop`, `/flaky/{key}/{fails}`, `/retry-after/{seconds}`, `/disconnect`,
-`/hang-body/{seconds}`, `/drop-body`, `/garbage`, `/reset`,
+`/hang-body/{seconds}`, `/drip/{count}/{interval}`, `/drop-body`, `/garbage`, `/reset`,
 `/flaky-disconnect/{key}/{fails}`. It carries `.url` and `.request_count(prefix)`.
 
 ### Telemetry
@@ -404,12 +404,14 @@ What each one will not do:
   implementation. Per-host pool limits are *emulated* by a per-origin in-flight semaphore
   (it limits requests, not connections). DNS failures collapse into `connect_error`.
   Everything TLS- and pool-related goes into the transport constructor, because
-  `Client(transport=...)` silently ignores `verify`, `http2` and `limits`.
+  `Client(transport=...)` silently ignores `verify`, `http2` and `limits`. The response
+  stream passes through the adapter, so the total bounds the body too.
 * **aiohttp** — the session must be constructed inside a running event loop. Write and pool
   timeouts do not exist and are dropped; `pool.max_keepalive` is ignored; HTTP/2 is dropped.
   `ClientTimeout.total` is deliberately `None` so aiohttp's timer cannot wrap the engine's
-  own retry loop. The call duration ends at the headers, so there is no body-duration
-  metric. A caller writing `session.get(url, middlewares=())` replaces the chain and
+  own retry loop. The call duration and the total end at the headers, so there is no
+  body-duration metric and a dripping body is bounded only by `read`. A caller writing
+  `session.get(url, middlewares=())` replaces the chain and
   bypasses the engine entirely — that is counted, not prevented.
 * **requests** — no `base_url` (a config that sets one fails the build), no write or pool
   timeout, no `attempt` ceiling, no hard deadline. It closes requests' famous hole: the
@@ -464,7 +466,10 @@ What each one will not do:
 10. **The total deadline covers everything and is only hard on async.** Async engines wrap
     each attempt in a cancellation scope; sync engines cannot cancel a blocked socket, so
     they clamp phases and re-check at attempt boundaries — the failure then arrives as
-    `read_timeout`, not `total_timeout`. Sync adapters declare `deadline_hard: absent`.
+    `read_timeout`, not `total_timeout`. Sync adapters declare `deadline_hard: absent`. The
+    total reaches into the response body only on the httpx family
+    (`deadline_covers_body: emulated` — cancellation per chunk on async, a check between
+    chunks on sync); on aiohttp, requests and urllib3 it stops at the headers.
 11. **`caller_override` never lets a caller escape the total.** `CALLER_WINS` replaces the
     config's phases with the caller's, then clamps them to the remaining budget; a
     `timeout=60` on a call with 3 seconds left gets 3 seconds. `RAISE` makes a per-call

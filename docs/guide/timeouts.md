@@ -34,6 +34,18 @@ scope, so a stuck read is cancelled mid-flight and the call raises with the outc
 [Sync and async](../learn/sync-and-async.md#the-one-honest-difference-hard-vs-soft-deadlines)
 for exactly what that means and why it is declared rather than hidden.
 
+On the httpx family the total reaches into the response body as well: the adapter
+wraps the response stream, so a body that keeps dripping after the headers is cut
+when the budget runs out — by cancellation on the async client, and on the sync
+client by refusing the next chunk once the budget is gone (a blocked read still
+cannot be interrupted, so the sync overrun is at most one chunk or one read
+timeout). The call raises `DeadlineExceededError` either way. The call metric had
+already closed at the headers, so a body-phase deadline shows in the exception and
+in `http_client_body_duration_seconds`, not in `requests_total`. On aiohttp,
+requests and urllib3 the seam ends at the headers and only the SDK's read timeout
+bounds the body; `Capability.DEADLINE_COVERS_BODY` in the
+[capability record](capabilities.md) says which is which.
+
 ## Phase timeouts
 
 `connect`, `read`, `write` and `pool_acquire` cap phases of a *single attempt* and

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 httpx = pytest.importorskip("httpx", reason="requires the [httpx] extra")
@@ -10,6 +12,7 @@ import clientwright  # noqa: E402
 from clientwright import AdapterDeps, ClientConfig, RetryConfig, TimeoutConfig  # noqa: E402
 from clientwright.adapters.httpx import (  # noqa: E402
     HttpxCircuitOpenError,
+    HttpxDeadlineExceededError,
     HttpxTooManyRedirectsError,
 )
 from clientwright.core.config import CircuitBreakerConfig  # noqa: E402
@@ -65,6 +68,19 @@ def test__soft_deadline__clamps_read_phase(origin: OriginServer, deps: AdapterDe
     client = build(config, deps)
     with pytest.raises(httpx.TimeoutException):
         client.get("/slow/3")
+    client.close()
+
+
+def test__dripping_body__refused_after_the_total(
+    origin: OriginServer, metrics: RecordingMetrics, deps: AdapterDeps
+) -> None:
+    config = base_config(origin, timeout=TimeoutConfig(total=0.5, connect=1.0), retry=None)
+    client = build(config, deps)
+    started = time.monotonic()
+    with pytest.raises(HttpxDeadlineExceededError):
+        client.get("/drip/6/0.2")  # 1.2 s of body behind instant headers
+    assert time.monotonic() - started < 1.0  # soft: late by at most the chunk already in flight
+    assert metrics.calls[0]["outcome"] == "success"  # the call metric closed at the headers, as declared
     client.close()
 
 

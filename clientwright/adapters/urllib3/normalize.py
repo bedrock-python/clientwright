@@ -8,6 +8,7 @@ from typing import Any
 from ...core.contracts.message import RequestView, ResponseView
 from ...core.engine.base import default_response_outcome
 from ...core.model import ConnMetrics, FailureKind, Outcome
+from ...core.policy.budget import Deadline
 from .classify import classify_error
 from .views import Urllib3RequestView, Urllib3ResponseView
 
@@ -39,7 +40,9 @@ class SyncUrllib3Normalizer:
         except Exception:
             return None
 
-    def wrap_stream(self, response: ResponseView, on_done: Callable[[Outcome, float], None]) -> None:
+    def wrap_stream(
+        self, response: ResponseView, on_done: Callable[[Outcome, float], None], deadline: Deadline
+    ) -> None:
         # urlopen preloads the body by default; streaming reads happen above
         # the seam and are not instrumented. Declared in capabilities.
         return None

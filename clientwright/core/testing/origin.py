@@ -12,6 +12,7 @@ Routes:
 
 Chaos routes (mid-stream and protocol-level faults):
 - ``/hang-body/{seconds}``           200 announcing 10 bytes: 3 arrive, the rest after the stall
+- ``/drip/{count}/{interval}``       200 announcing {count} bytes, one arriving every {interval} seconds
 - ``/drop-body``                     200 announcing 10 bytes but the connection dies after 3
 - ``/garbage``                       raw non-HTTP bytes instead of a status line
 - ``/reset``                         hard TCP reset (SO_LINGER 0) instead of a response
@@ -106,6 +107,19 @@ class _Handler(BaseHTTPRequestHandler):
             try:
                 self.wfile.write(body[3:])
             except OSError:  # the client gave up mid-stall; routine for this route
+                self.close_connection = True
+            return
+        if parts[0] == "drip":
+            count, interval = int(parts[1]), float(parts[2])
+            self.send_response(200)
+            self.send_header("Content-Length", str(count))
+            self.end_headers()
+            try:
+                for _ in range(count):
+                    time.sleep(interval)
+                    self.wfile.write(b"x")
+                    self.wfile.flush()
+            except OSError:  # the client gave up mid-body; routine for this route
                 self.close_connection = True
             return
         if parts[0] == "drop-body":

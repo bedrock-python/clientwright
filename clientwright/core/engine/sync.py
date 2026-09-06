@@ -57,7 +57,8 @@ class SyncAttemptEngine:
         final_outcome = Outcome(kind=FailureKind.UNKNOWN)
         response: ResponseView | None = None
         try:
-            response, final_outcome = self._admitted(request, send, observation)
+            deadline = self._deadline()
+            response, final_outcome = self._admitted(request, send, observation, deadline)
         except CallError as error:
             final_outcome = self._call_error_outcome(error)
             raise self._translate(error) from error
@@ -70,7 +71,7 @@ class SyncAttemptEngine:
         if final_outcome.exception is not None:
             raise final_outcome.exception
         assert response is not None
-        self._wrap_stream(response, info)
+        self._wrap_stream(response, info, deadline)
         return response.native
 
     def _call_error_outcome(self, error: CallError) -> Outcome:
@@ -80,11 +81,11 @@ class SyncAttemptEngine:
             return Outcome(kind=FailureKind.TOTAL_TIMEOUT, exception=error)
         return Outcome(kind=FailureKind.UNKNOWN, exception=error)
 
-    def _wrap_stream(self, response: ResponseView, info: Any) -> None:
+    def _wrap_stream(self, response: ResponseView, info: Any, deadline: Deadline) -> None:
         def on_done(outcome: Outcome, duration: float) -> None:
             self._telemetry.record_body_duration(info, duration)
 
-        self._norm.wrap_stream(response, on_done)
+        self._norm.wrap_stream(response, on_done, deadline)
 
     def _inject_headers(self, request: RequestView) -> None:
         headers = request.headers
@@ -102,12 +103,11 @@ class SyncAttemptEngine:
         return Deadline.intersect(self._runtime.clock, self._plan.config.timeout.total, ambient)
 
     def _admitted(
-        self, request: RequestView, send: SyncSend, observation: CallObservation
+        self, request: RequestView, send: SyncSend, observation: CallObservation, deadline: Deadline
     ) -> tuple[ResponseView | None, Outcome]:
         plan = self._plan
         runtime = self._runtime
         info = request.info
-        deadline = self._deadline()
         self._inject_headers(request)
         circuit_key: str | None = None
         with ExitStack() as stack:

@@ -68,11 +68,13 @@ not as chores:
 ## Capability notes
 
 - **Boundary: headers.** The aiohttp seam completes when response *headers*
-  arrive; the body is read by your code afterwards. Call metrics therefore time
-  to-headers, with body read time reported separately as
-  `http_client_body_duration_seconds` (measured via the trace hooks). A body
-  that fails mid-read after a `200` is an error your code sees, but the call
-  metric has honestly already closed — this is declared, not hidden.
+  arrive; the body is read by your code afterwards through aiohttp's own
+  `StreamReader`. Call metrics therefore time to-headers, there is no
+  `http_client_body_duration_seconds`, and `timeout.total` stops there as well —
+  a body that keeps dripping is bounded only by `read` (`sock_read`). A body that
+  fails mid-read after a `200` is an error your code sees, but the call metric
+  has honestly already closed — this is declared (`deadline_covers_body: absent`),
+  not hidden.
 - **DNS errors**: natively distinguishable (`dns_error` is real here, unlike
   httpx).
 - **Pool wait**: folded by aiohttp into the connect phase — `pool_timeout` is

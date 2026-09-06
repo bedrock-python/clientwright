@@ -41,6 +41,9 @@ enforces the total as a **soft** deadline: it clamps every phase timeout of ever
 attempt to the remaining budget and re-checks the wall clock at attempt boundaries.
 You still never wait meaningfully longer than `total` — but the failure arrives as
 the clamped phase (`read_timeout` from the SDK), not as an abstract deadline error.
+The response body follows the same split on the httpx family: the async client
+cancels a dripping body the moment the total runs out, the sync client refuses the
+next chunk after it.
 
 This is deliberately *not* papered over. Sync adapters declare
 `DEADLINE_HARD: absent` in their [capability record](../guide/capabilities.md), and

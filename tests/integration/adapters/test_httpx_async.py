@@ -14,6 +14,7 @@ from clientwright.adapters.httpx import (  # noqa: E402
     IDEMPOTENT_EXTENSION,
     ROUTE_EXTENSION,
     HttpxCircuitOpenError,
+    HttpxDeadlineExceededError,
     HttpxTooManyRedirectsError,
 )
 from clientwright.core.config import CircuitBreakerConfig  # noqa: E402
@@ -172,6 +173,23 @@ async def test__deadline_header__stamped_with_remaining_budget(origin: OriginSer
     response = await client.get("/echo")
     stamped = int(response.json()["headers"]["x-deadline-ms"])
     assert 0 < stamped <= 30_000
+    await client.aclose()
+
+
+async def test__dripping_body__cut_by_the_total(
+    origin: OriginServer, metrics: RecordingMetrics, deps: AdapterDeps
+) -> None:
+    config = base_config(origin, timeout=TimeoutConfig(total=0.5, connect=1.0), retry=None)
+    client = await build(config, deps)
+    started = asyncio.get_running_loop().time()
+    with pytest.raises(HttpxDeadlineExceededError) as excinfo:
+        await client.get("/drip/6/0.2")  # 1.2 s of body behind instant headers
+    elapsed = asyncio.get_running_loop().time() - started
+    assert isinstance(excinfo.value, httpx.TimeoutException)
+    assert 0.4 < elapsed < 1.0
+    assert metrics.calls[0]["outcome"] == "success"  # the call metric closed at the headers, as declared
+    assert len(metrics.body_durations) == 1
+    assert metrics.inflight_balance == 0
     await client.aclose()
 
 

@@ -9,6 +9,7 @@ from typing import Any
 from ...core.contracts.message import RequestView, ResponseView
 from ...core.engine.base import default_response_outcome
 from ...core.model import ConnMetrics, FailureKind, Outcome
+from ...core.policy.budget import Deadline
 from ._imports import aiohttp
 from .classify import classify_error
 from .trace import current_conn_metrics
@@ -52,9 +53,12 @@ class AsyncAiohttpNormalizer:
         except Exception:
             return None
 
-    def wrap_stream(self, response: ResponseView, on_done: Callable[[Outcome, float], None]) -> None:
-        # The middleware returns at headers; the body streams outside the seam.
-        # Declared in capabilities (note "body_duration"), not silently skipped.
+    def wrap_stream(
+        self, response: ResponseView, on_done: Callable[[Outcome, float], None], deadline: Deadline
+    ) -> None:
+        # The middleware returns at headers; the body streams outside the seam
+        # through aiohttp's own StreamReader, so neither telemetry nor the
+        # deadline reaches it. Declared in capabilities, not silently skipped.
         return None
 
     def conn_metrics(self, response: ResponseView) -> ConnMetrics | None:

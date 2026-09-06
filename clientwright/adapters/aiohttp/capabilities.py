@@ -24,6 +24,7 @@ CAPABILITIES = AdapterCapabilities(
         Capability.TIMEOUT_WRITE: Support.ABSENT,
         Capability.TIMEOUT_POOL: Support.ABSENT,
         Capability.DEADLINE_HARD: Support.EMULATED,
+        Capability.DEADLINE_COVERS_BODY: Support.ABSENT,
         Capability.POOL_LIMIT_TOTAL: Support.NATIVE,
         Capability.POOL_LIMIT_PER_HOST: Support.NATIVE,
         Capability.KEEPALIVE: Support.NATIVE,
@@ -74,6 +75,10 @@ CAPABILITIES = AdapterCapabilities(
         ),
         "ceil_threshold": "ClientTimeout.ceil_threshold is raised so aiohttp never ceils deadlines to whole seconds.",
         "body_duration": "The middleware returns at headers; body read is not instrumented (no body_duration metric).",
+        "deadline_covers_body": (
+            "The body streams outside the seam through aiohttp's StreamReader: the total stops at the headers and "
+            "only sock_read bounds a dripping body."
+        ),
         "max_keepalive": "aiohttp has no cap on the NUMBER of keep-alive connections; pool.max_keepalive is ignored.",
     },
 )

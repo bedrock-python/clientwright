@@ -13,6 +13,7 @@ one extra and one import path.
 
 from __future__ import annotations
 
+import asyncio
 import ssl
 from collections.abc import Callable, Mapping, MutableMapping
 from typing import Any
@@ -32,6 +33,7 @@ from ..core.errors import CallError, CircuitOpenError, DeadlineExceededError, To
 from ..core.model import IDEMPOTENT_METHODS, ConnMetrics, FailureKind, Outcome, RequestInfo, ResolvedTimeouts, origin_of
 from ..core.native import accepted_overrides, validate_native
 from ..core.plan import CallPlan, ClientHandle, ClientRuntime, compile_plan, register_handle
+from ..core.policy.budget import Deadline
 from ..core.policy.timeout import base_timeouts
 from ..core.telemetry.emitter import ClientTelemetry
 
@@ -84,6 +86,7 @@ def capabilities_for(adapter: str) -> AdapterCapabilities:
             Capability.TIMEOUT_WRITE: Support.NATIVE,
             Capability.TIMEOUT_POOL: Support.NATIVE,
             Capability.DEADLINE_HARD: Support.EMULATED,
+            Capability.DEADLINE_COVERS_BODY: Support.EMULATED,
             Capability.POOL_LIMIT_TOTAL: Support.NATIVE,
             Capability.POOL_LIMIT_PER_HOST: Support.EMULATED,
             Capability.KEEPALIVE: Support.NATIVE,
@@ -123,6 +126,10 @@ def capabilities_for(adapter: str) -> AdapterCapabilities:
             "pool_limit_per_host": "Emulated as a per-origin in-flight semaphore; limits requests, not connections.",
             "dns_error": f"{adapter} wraps DNS failures into ConnectError; they surface as connect_error.",
             "proxy_from_env": "Environment proxies are parsed into mounts; NO_PROXY entries match hosts literally.",
+            "deadline_covers_body": (
+                "The response body is inside the total: the async client bounds every chunk by the remaining budget, "
+                "the sync client refuses the next chunk once the budget is gone (soft)."
+            ),
         },
     )
 
@@ -140,8 +147,6 @@ def has_ssl_cause(exc: BaseException) -> bool:
 
 def classify_family_error(sdk: Any, exc: BaseException) -> FailureKind:
     """Exception -> FailureKind for any SDK exposing the httpx error names."""
-    import asyncio  # noqa: PLC0415 - stdlib, deferred to keep module import light
-
     if isinstance(exc, asyncio.CancelledError):
         return FailureKind.CANCELLED
     if isinstance(exc, sdk.ConnectTimeout):
@@ -344,12 +349,21 @@ class FamilyResponseView:
 
 
 class TimedStreamCore:
-    """Times body consumption and reports read failures exactly once."""
+    """Times body consumption, keeps it inside the deadline and reports the end exactly once."""
 
-    def __init__(self, inner: Any, clock: Callable[[], float], on_done: Callable[[Outcome, float], None]) -> None:
+    def __init__(
+        self,
+        inner: Any,
+        clock: Callable[[], float],
+        on_done: Callable[[Outcome, float], None],
+        deadline: Deadline,
+        translate: Callable[[CallError], BaseException],
+    ) -> None:
         self._inner = inner
         self._clock = clock
         self._on_done = on_done
+        self._deadline = deadline
+        self._translate = translate
         self._started = clock()
         self._finished = False
 
@@ -358,14 +372,37 @@ class TimedStreamCore:
             self._finished = True
             self._on_done(outcome, self._clock() - self._started)
 
+    def _failed(self, exc: BaseException) -> None:
+        kind = FailureKind.TOTAL_TIMEOUT if isinstance(exc, DeadlineExceededError) else FailureKind.BODY_ERROR
+        self._finish(Outcome(kind=kind, exception=exc))
+
+    def _expired(self) -> BaseException:
+        return self._translate(DeadlineExceededError(self._deadline.total or 0.0))
+
+    def _check_budget(self) -> None:
+        if self._deadline.expired:
+            raise self._expired()
+
 
 class AsyncTimedStreamMixin(TimedStreamCore):
     async def __aiter__(self) -> Any:
+        chunks = self._inner.__aiter__()
         try:
-            async for chunk in self._inner:
+            while True:
+                self._check_budget()
+                scope = asyncio.timeout(self._deadline.remaining())
+                try:
+                    async with scope:
+                        chunk = await anext(chunks)
+                except StopAsyncIteration:
+                    break
+                except Exception as exc:
+                    if scope.expired():
+                        raise self._expired() from exc
+                    raise
                 yield chunk
         except Exception as exc:
-            self._finish(Outcome(kind=FailureKind.BODY_ERROR, exception=exc))
+            self._failed(exc)
             raise
         self._finish(Outcome(kind=None))
 
@@ -378,10 +415,20 @@ class AsyncTimedStreamMixin(TimedStreamCore):
 
 class SyncTimedStreamMixin(TimedStreamCore):
     def __iter__(self) -> Any:
+        # A blocked read cannot be interrupted: the deadline is soft here and
+        # refuses to START a read once the budget is gone, so the overrun is at
+        # most one chunk or one read timeout.
+        chunks = iter(self._inner)
         try:
-            yield from self._inner
+            while True:
+                self._check_budget()
+                try:
+                    chunk = next(chunks)
+                except StopIteration:
+                    break
+                yield chunk
         except Exception as exc:
-            self._finish(Outcome(kind=FailureKind.BODY_ERROR, exception=exc))
+            self._failed(exc)
             raise
         self._finish(Outcome(kind=None))
 
@@ -403,12 +450,14 @@ class AsyncFamilyNormalizer:
         sdk: Any,
         request_view: Callable[[Any], Any],
         timed_stream: Callable[..., Any],
+        translate: Callable[[CallError], BaseException],
     ) -> None:
         self._default_timeout = default_timeout
         self._clock = clock
         self._sdk = sdk
         self._request_view = request_view
         self._timed_stream = timed_stream
+        self._translate = translate
 
     def wrap_request(self, native: Any) -> Any:
         return self._request_view(native)
@@ -440,11 +489,11 @@ class AsyncFamilyNormalizer:
         except Exception:
             return None
 
-    def wrap_stream(self, response: Any, on_done: Callable[[Outcome, float], None]) -> None:
+    def wrap_stream(self, response: Any, on_done: Callable[[Outcome, float], None], deadline: Deadline) -> None:
         native = response.native
         stream = native.stream
         if isinstance(stream, self._sdk.AsyncByteStream):
-            native.stream = self._timed_stream(stream, self._clock, on_done)
+            native.stream = self._timed_stream(stream, self._clock, on_done, deadline, self._translate)
 
     def conn_metrics(self, response: Any) -> ConnMetrics | None:
         return None
@@ -461,12 +510,14 @@ class SyncFamilyNormalizer:
         sdk: Any,
         request_view: Callable[[Any], Any],
         timed_stream: Callable[..., Any],
+        translate: Callable[[CallError], BaseException],
     ) -> None:
         self._default_timeout = default_timeout
         self._clock = clock
         self._sdk = sdk
         self._request_view = request_view
         self._timed_stream = timed_stream
+        self._translate = translate
 
     def wrap_request(self, native: Any) -> Any:
         return self._request_view(native)
@@ -498,11 +549,11 @@ class SyncFamilyNormalizer:
         except Exception:
             return None
 
-    def wrap_stream(self, response: Any, on_done: Callable[[Outcome, float], None]) -> None:
+    def wrap_stream(self, response: Any, on_done: Callable[[Outcome, float], None], deadline: Deadline) -> None:
         native = response.native
         stream = native.stream
         if isinstance(stream, self._sdk.SyncByteStream):
-            native.stream = self._timed_stream(stream, self._clock, on_done)
+            native.stream = self._timed_stream(stream, self._clock, on_done, deadline, self._translate)
 
     def conn_metrics(self, response: Any) -> ConnMetrics | None:
         return None
@@ -636,7 +687,7 @@ class FamilyAdapter:
             applied.add(Capability.HTTP2)
         if config.proxy is not None:
             applied.add(Capability.PROXY)
-        emulated = {Capability.TIMEOUT_TOTAL}
+        emulated = {Capability.TIMEOUT_TOTAL, Capability.DEADLINE_COVERS_BODY}
         dropped: dict[Capability, str] = {}
         if sync:
             # The sync engine cannot cancel a blocked socket call: no hard
