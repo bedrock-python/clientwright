@@ -60,6 +60,7 @@ The route table reads like a chaos menu:
 | `/disconnect` | closes without a response |
 | `/drop-body` | announces 10 body bytes, dies after 3 |
 | `/hang-body/{seconds}` | sends 3 bytes, stalls, then finishes |
+| `/drip/{count}/{interval}` | announces *count* bytes and sends one every *interval* seconds |
 | `/garbage` | raw non-HTTP bytes instead of a status line |
 | `/reset` | a hard TCP reset |
 

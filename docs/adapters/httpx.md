@@ -43,7 +43,10 @@ await client.post(
 ## Capability notes
 
 - **Total deadline**: hard on async (cancellation), soft on sync — httpx itself
-  has *no* wall-clock timeout; this is the engine's addition.
+  has *no* wall-clock timeout; this is the engine's addition. It covers the
+  response body too, because the response stream passes through the adapter:
+  the async client bounds every chunk by the remaining budget, the sync client
+  refuses the next chunk once the budget is gone.
 - **Errors**: httpx's exception taxonomy is the richest of the five, so
   `FailureKind` mapping is nearly one-to-one (`ConnectTimeout` →
   `connect_timeout`, `ReadTimeout` → `read_timeout`, ...). DNS failures are not

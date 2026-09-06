@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import ssl
+import time
 from collections.abc import AsyncIterator, Iterator
 from types import SimpleNamespace
 
@@ -26,7 +27,9 @@ from clientwright.adapters._httpx_shared import (  # noqa: E402
     no_proxy_hosts,
     ssl_arguments,
 )
+from clientwright.adapters.httpx import HttpxDeadlineExceededError  # noqa: E402
 from clientwright.adapters.httpx.classify import classify_error  # noqa: E402
+from clientwright.adapters.httpx.errors import translate_call_error  # noqa: E402
 from clientwright.adapters.httpx.normalize import AsyncHttpxNormalizer  # noqa: E402
 from clientwright.adapters.httpx.normalize_sync import SyncHttpxNormalizer  # noqa: E402
 from clientwright.adapters.httpx.transport import (  # noqa: E402
@@ -38,6 +41,7 @@ from clientwright.adapters.httpx.transport import (  # noqa: E402
 from clientwright.core.capabilities import Capability  # noqa: E402
 from clientwright.core.config import ClientConfig, PoolConfig, ProxyConfig, TlsConfig  # noqa: E402
 from clientwright.core.model import FailureKind, Outcome  # noqa: E402
+from clientwright.core.policy.budget import Deadline  # noqa: E402
 
 DEFAULT_TIMEOUT = {"connect": 5.0, "read": 5.0, "write": 5.0, "pool": 5.0}
 
@@ -149,6 +153,39 @@ class _FailingSyncStream(httpx.SyncByteStream):
         raise ValueError("mid-body failure")
 
 
+class _DrippingAsyncStream(httpx.AsyncByteStream):
+    """One chunk at once, then a stall longer than any deadline in this file."""
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield b"first"
+        await asyncio.sleep(5.0)
+        yield b"late"
+
+
+class _CountingAsyncStream(httpx.AsyncByteStream):
+    def __init__(self) -> None:
+        self.reads = 0
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        self.reads += 1
+        yield b"body"
+
+
+class _CountingSyncStream(httpx.SyncByteStream):
+    """Every chunk moves the fake clock by ``advance``: the time the read took."""
+
+    def __init__(self, clock: _FakeClock, advance: float) -> None:
+        self._clock = clock
+        self._advance = advance
+        self.reads = 0
+
+    def __iter__(self) -> Iterator[bytes]:
+        for _ in range(3):
+            self.reads += 1
+            self._clock.now += self._advance
+            yield b"x"
+
+
 class _OnDoneRecorder:
     def __init__(self) -> None:
         self.calls: list[tuple[Outcome, float]] = []
@@ -160,7 +197,7 @@ class _OnDoneRecorder:
 async def test__async_timed_stream__reports_read_failure_once_and_reraises() -> None:
     recorder = _OnDoneRecorder()
     clock = _FakeClock(now=10.0)
-    stream = _TimedAsyncStream(_FailingAsyncStream(), clock, recorder)
+    stream = _TimedAsyncStream(_FailingAsyncStream(), clock, recorder, Deadline(None, clock), translate_call_error)
     clock.now = 10.25
     received: list[bytes] = []
     with pytest.raises(ValueError, match="mid-body failure"):
@@ -178,7 +215,7 @@ async def test__async_timed_stream__reports_read_failure_once_and_reraises() -> 
 def test__sync_timed_stream__reports_read_failure_once_and_reraises() -> None:
     recorder = _OnDoneRecorder()
     clock = _FakeClock(now=10.0)
-    stream = _TimedSyncStream(_FailingSyncStream(), clock, recorder)
+    stream = _TimedSyncStream(_FailingSyncStream(), clock, recorder, Deadline(None, clock), translate_call_error)
     clock.now = 10.25
     received: list[bytes] = []
     with pytest.raises(ValueError, match="mid-body failure"):
@@ -190,6 +227,74 @@ def test__sync_timed_stream__reports_read_failure_once_and_reraises() -> None:
     assert duration == 0.25
     stream.close()  # a later close must NOT report a second outcome
     assert len(recorder.calls) == 1
+
+
+async def test__async_timed_stream__cuts_a_dripping_body_at_the_deadline() -> None:
+    recorder = _OnDoneRecorder()
+    deadline = Deadline(0.05, time.monotonic)
+    stream = _TimedAsyncStream(_DrippingAsyncStream(), time.monotonic, recorder, deadline, translate_call_error)
+    received: list[bytes] = []
+    with pytest.raises(HttpxDeadlineExceededError) as excinfo:
+        async for chunk in stream:
+            received.append(chunk)
+    assert isinstance(excinfo.value, httpx.TimeoutException)
+    assert received == [b"first"]
+    outcome, _ = recorder.calls[0]
+    assert outcome.kind is FailureKind.TOTAL_TIMEOUT
+    await stream.aclose()  # a later close must NOT report a second outcome
+    assert len(recorder.calls) == 1
+
+
+async def test__async_timed_stream__refuses_to_read_once_the_budget_is_gone() -> None:
+    clock = _FakeClock(now=10.0)
+    deadline = Deadline(1.0, clock)
+    clock.now = 12.0  # the budget went while the caller sat on the response
+    inner = _CountingAsyncStream()
+    recorder = _OnDoneRecorder()
+    stream = _TimedAsyncStream(inner, clock, recorder, deadline, translate_call_error)
+    with pytest.raises(HttpxDeadlineExceededError):
+        async for _ in stream:
+            pass
+    assert inner.reads == 0
+    assert recorder.calls[0][0].kind is FailureKind.TOTAL_TIMEOUT
+
+
+async def test__async_timed_stream__body_inside_the_budget_completes() -> None:
+    clock = _FakeClock(now=10.0)
+    recorder = _OnDoneRecorder()
+    stream = _TimedAsyncStream(_CountingAsyncStream(), clock, recorder, Deadline(1.0, clock), translate_call_error)
+    assert [chunk async for chunk in stream] == [b"body"]
+    assert recorder.calls[0][0].kind is None
+
+
+def test__sync_timed_stream__refuses_the_next_read_once_the_deadline_passed() -> None:
+    clock = _FakeClock(now=10.0)
+    deadline = Deadline(1.0, clock)
+    inner = _CountingSyncStream(clock, advance=0.6)
+    recorder = _OnDoneRecorder()
+    stream = _TimedSyncStream(inner, clock, recorder, deadline, translate_call_error)
+    received: list[bytes] = []
+    with pytest.raises(HttpxDeadlineExceededError):
+        received.extend(stream)
+    # The second read started with budget left and its chunk is delivered; the
+    # third is refused. Soft: late by at most the read that was already in flight.
+    assert received == [b"x", b"x"]
+    assert inner.reads == 2
+    outcome, _ = recorder.calls[0]
+    assert outcome.kind is FailureKind.TOTAL_TIMEOUT
+    stream.close()  # a later close must NOT report a second outcome
+    assert len(recorder.calls) == 1
+
+
+def test__sync_timed_stream__body_inside_the_budget_completes() -> None:
+    clock = _FakeClock(now=10.0)
+    recorder = _OnDoneRecorder()
+    inner = _CountingSyncStream(clock, advance=0.1)
+    stream = _TimedSyncStream(inner, clock, recorder, Deadline(1.0, clock), translate_call_error)
+    assert list(stream) == [b"x", b"x", b"x"]
+    outcome, duration = recorder.calls[0]
+    assert outcome.kind is None
+    assert duration == pytest.approx(0.3)
 
 
 # --- normalizer edge paths ---------------------------------------------------
@@ -347,6 +452,15 @@ def test__explicit_proxy__reported_applied_natively() -> None:
     handle = clientwright.build_sync_handle("httpx", config)
     try:
         assert Capability.PROXY in handle.report.applied_natively
+    finally:
+        assert handle.close is not None
+        handle.close()
+
+
+def test__deadline_covers_body__reported_emulated() -> None:
+    handle = clientwright.build_sync_handle("httpx", ClientConfig(service_name="s"))
+    try:
+        assert Capability.DEADLINE_COVERS_BODY in handle.report.emulated
     finally:
         assert handle.close is not None
         handle.close()

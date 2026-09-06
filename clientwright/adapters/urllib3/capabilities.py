@@ -24,6 +24,7 @@ CAPABILITIES = AdapterCapabilities(
         Capability.TIMEOUT_WRITE: Support.ABSENT,
         Capability.TIMEOUT_POOL: Support.NATIVE,
         Capability.DEADLINE_HARD: Support.ABSENT,
+        Capability.DEADLINE_COVERS_BODY: Support.ABSENT,
         Capability.POOL_LIMIT_TOTAL: Support.ABSENT,
         Capability.POOL_LIMIT_PER_HOST: Support.NATIVE,
         Capability.KEEPALIVE: Support.DEGRADED,
@@ -85,6 +86,10 @@ CAPABILITIES = AdapterCapabilities(
         "per_call_options": "No request object; route/idempotency travel via the call_options() context manager.",
         "base_url": "urllib3 has no base_url; the build rejects a config that sets one.",
         "proxy": "An explicit proxy builds a genuine urllib3.ProxyManager; env proxies are not read (dropped).",
+        "deadline_covers_body": (
+            "urlopen preloads or streams the body above the seam: the total stops at the headers and only the read "
+            "timeout bounds a dripping body."
+        ),
     },
 )
 

@@ -28,6 +28,7 @@ from clientwright.core.engine.base import default_response_outcome
 from clientwright.core.engine.sync import SyncAttemptEngine
 from clientwright.core.model import ConnMetrics, FailureKind, Outcome, RequestInfo, ResolvedTimeouts, origin_of
 from clientwright.core.plan import ClientRuntime, compile_plan
+from clientwright.core.policy.budget import Deadline
 from clientwright.core.telemetry.emitter import ClientTelemetry
 from clientwright.core.testing import RecordingMetrics
 from tests.helpers.views import FakeResponse
@@ -211,7 +212,9 @@ class FakeNormalizer:
     def classify_response(self, response: FakeResponse) -> Outcome:
         return default_response_outcome(response)
 
-    def wrap_stream(self, response: FakeResponse, on_done: Callable[[Outcome, float], None]) -> None:
+    def wrap_stream(
+        self, response: FakeResponse, on_done: Callable[[Outcome, float], None], deadline: Deadline
+    ) -> None:
         self.wrapped_streams += 1
 
     def conn_metrics(self, response: FakeResponse) -> ConnMetrics | None:

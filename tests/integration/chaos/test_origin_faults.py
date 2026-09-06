@@ -8,6 +8,7 @@ environment and documents each fault's exact wire shape.
 from __future__ import annotations
 
 import http.client
+import time
 from urllib.parse import urlsplit
 
 import pytest
@@ -61,6 +62,14 @@ def test__disconnect__closes_without_any_response(origin: OriginServer) -> None:
 def test__hang_body__delivers_everything_to_a_patient_reader(origin: OriginServer) -> None:
     response = _get(origin, "/hang-body/0.2")
     assert response.read() == b"0123456789"
+
+
+def test__drip__delivers_one_byte_per_interval(origin: OriginServer) -> None:
+    started = time.monotonic()
+    response = _get(origin, "/drip/3/0.05")
+    assert response.getheader("Content-Length") == "3"
+    assert response.read() == b"xxx"
+    assert time.monotonic() - started >= 0.15
 
 
 def test__flaky_disconnect__drops_then_recovers(origin: OriginServer) -> None:

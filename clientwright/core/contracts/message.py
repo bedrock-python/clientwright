@@ -12,6 +12,7 @@ from collections.abc import Callable, MutableMapping
 from typing import Any, Protocol, runtime_checkable
 
 from ..model import ConnMetrics, FailureKind, Outcome, RequestInfo, ResolvedTimeouts
+from ..policy.budget import Deadline
 
 
 @runtime_checkable
@@ -80,9 +81,11 @@ class AsyncNormalizer(Protocol):
         """MANDATORY before a repeat - otherwise the connection never returns to the pool."""
         ...
 
-    def wrap_stream(self, response: ResponseView, on_done: Callable[[Outcome, float], None]) -> None:
-        """boundary=full: wrap the body stream so read duration and errors reach
-        telemetry. No-op where there is nothing to wrap."""
+    def wrap_stream(
+        self, response: ResponseView, on_done: Callable[[Outcome, float], None], deadline: Deadline
+    ) -> None:
+        """Wrap the body stream so read duration and errors reach telemetry and
+        the deadline bounds the body. No-op where the body streams outside the seam."""
         ...
 
     def conn_metrics(self, response: ResponseView) -> ConnMetrics | None: ...
@@ -105,7 +108,9 @@ class SyncNormalizer(Protocol):
 
     def discard(self, response: ResponseView) -> None: ...
 
-    def wrap_stream(self, response: ResponseView, on_done: Callable[[Outcome, float], None]) -> None: ...
+    def wrap_stream(
+        self, response: ResponseView, on_done: Callable[[Outcome, float], None], deadline: Deadline
+    ) -> None: ...
 
     def conn_metrics(self, response: ResponseView) -> ConnMetrics | None: ...
 

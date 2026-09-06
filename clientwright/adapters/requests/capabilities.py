@@ -24,6 +24,7 @@ CAPABILITIES = AdapterCapabilities(
         Capability.TIMEOUT_WRITE: Support.ABSENT,
         Capability.TIMEOUT_POOL: Support.ABSENT,
         Capability.DEADLINE_HARD: Support.ABSENT,
+        Capability.DEADLINE_COVERS_BODY: Support.ABSENT,
         Capability.POOL_LIMIT_TOTAL: Support.ABSENT,
         Capability.POOL_LIMIT_PER_HOST: Support.NATIVE,
         Capability.KEEPALIVE: Support.DEGRADED,
@@ -79,6 +80,10 @@ CAPABILITIES = AdapterCapabilities(
         "base_url": "requests has no base_url; the build rejects a config that sets one.",
         "per_call_options": "No request extensions; route/idempotency travel via the call_options() context manager.",
         "protocol_error": "requests folds protocol violations into ConnectionError; they surface as disconnected.",
+        "deadline_covers_body": (
+            "Session.send reads the body above the seam: the total stops at the headers and only the read timeout "
+            "bounds a dripping body."
+        ),
     },
 )
 
