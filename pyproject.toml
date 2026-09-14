@@ -57,7 +57,8 @@ tracing = ["opentelemetry-api>=1.26"]
 observability = ["clientwright[metrics,tracing]"]
 deadline = ["deadline-budget>=0.1,<1"]
 dishka = ["dishka>=1.4"]
-all = ["clientwright[httpx,httpx2,aiohttp,requests,urllib3,observability,deadline,dishka]"]
+settings = ["pydantic>=2,<3", "pydantic-settings>=2.3,<3"]
+all = ["clientwright[httpx,httpx2,aiohttp,requests,urllib3,observability,deadline,dishka,settings]"]
 
 [dependency-groups]
 test = [

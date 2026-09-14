@@ -77,6 +77,7 @@ pip install clientwright[httpx]            # httpx adapter (sync + async)
 pip install clientwright[aiohttp]          # aiohttp adapter (async)
 pip install clientwright[httpx,metrics]    # + Prometheus backend
 pip install clientwright[httpx,tracing]    # + OpenTelemetry backend
+pip install clientwright[httpx,settings]   # + ClientConfig from the environment
 ```
 
 ## Sync twin
@@ -143,6 +144,28 @@ client = build("httpx", config, deps)
 
 with use_budget(BudgetContext.create(total_seconds=5.0)):
     await client.get("/users")  # runs with what is left of those 5 seconds
+```
+
+## From the environment
+
+With `clientwright[settings]`, `ClientConfig` and every sub-config exist as pydantic
+models with the same fields and defaults. They are plain `BaseModel`s — nest them in
+your own settings, so a bare `BASE_URL` in a pod can never reach a section:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from clientwright.contrib.settings import BaseClientSettings
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_nested_delimiter="__")
+
+    warehouse: BaseClientSettings = BaseClientSettings()
+
+
+# WAREHOUSE__BASE_URL=https://wh.example.com WAREHOUSE__TIMEOUT__TOTAL=10 WAREHOUSE__POOL__HTTP2=true
+config = Settings().warehouse.to_config("warehouse")
 ```
 
 ## Adapters

@@ -24,6 +24,7 @@ nav = [
     ] },
     { "Guide" = [
         { "Configuration" = "guide/configuration.md" },
+        { "Environment settings" = "guide/settings.md" },
         { "Timeouts and deadlines" = "guide/timeouts.md" },
         { "Retries" = "guide/retries.md" },
         { "Circuit breaker" = "guide/circuit-breaker.md" },

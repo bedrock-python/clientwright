@@ -26,6 +26,8 @@ SDK_ROOTS = frozenset(
         "prometheus_client",
         "opentelemetry",
         "deadline_budget",
+        "pydantic",
+        "pydantic_settings",
     }
 )
 

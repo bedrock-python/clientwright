@@ -19,7 +19,7 @@ clientwright/
 │   ├── contracts/        # the protocols adapters and backends implement
 │   └── testing/          # OriginServer, RecordingMetrics, ManualClock
 ├── adapters/      # one package per SDK; extras-gated, mutually independent
-└── contrib/       # deadline-budget and dishka glue
+└── contrib/       # deadline-budget, dishka and pydantic settings glue
 ```
 
 Three import-linter contracts hold the shape: the core never imports adapters,
