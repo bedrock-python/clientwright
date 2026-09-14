@@ -75,9 +75,32 @@ RetryConfig(jitter=1.5)  # ValueError: within [0, 1]
 
 ## From service settings
 
-Services usually keep settings in a pydantic model. Rather than depending on
-pydantic, clientwright accepts anything that structurally matches
-`ClientSettingsProtocol` — attribute names, not base classes:
+The values that differ between environments come from the environment, and with
+`clientwright[settings]` the library owns that path: `clientwright.contrib.settings`
+ships one pydantic model per config dataclass — same field names, same defaults —
+for a settings object of yours to nest, and `to_config()` is the only translation:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from clientwright.contrib.settings import BaseClientSettings
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_nested_delimiter="__")
+
+    warehouse: BaseClientSettings = BaseClientSettings()
+
+
+config = Settings().warehouse.to_config("warehouse")  # WAREHOUSE__TIMEOUT__TOTAL=10 ...
+```
+
+The sections are plain `BaseModel`s, reachable only through your settings, so a bare
+`BASE_URL` in the pod cannot reach one. The whole mapping is on its own page:
+[Environment settings](settings.md).
+
+Without pydantic, anything that structurally matches `ClientSettingsProtocol` — the
+flat, legacy attribute names — goes through `client_config_from_settings`:
 
 ```python
 from clientwright import client_config_from_settings
@@ -85,8 +108,8 @@ from clientwright import client_config_from_settings
 config = client_config_from_settings(settings.warehouse_api, "orders")
 ```
 
-Map your settings into a `ClientConfig` in exactly one place (usually next to the
-DI wiring) and pass the result around. The config is frozen, so it is safe to share.
+Either way, map settings into a `ClientConfig` in exactly one place (usually next to
+the DI wiring) and pass the result around. The config is frozen, so it is safe to share.
 
 ## The rest of the surface
 

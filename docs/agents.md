@@ -8,7 +8,7 @@
 |---|---|
 | Package | `clientwright` on PyPI, import root `clientwright` |
 | Requires | Python 3.12+. The core has zero dependencies; every adapter needs its own SDK |
-| Install | `pip install "clientwright[httpx]"` · extras: `httpx`, `httpx2`, `aiohttp`, `requests`, `urllib3`, `metrics`, `tracing`, `observability`, `deadline`, `dishka`, `all` |
+| Install | `pip install "clientwright[httpx]"` · extras: `httpx`, `httpx2`, `aiohttp`, `requests`, `urllib3`, `metrics`, `tracing`, `observability`, `deadline`, `dishka`, `settings`, `all` |
 | Async | `build("httpx" | "httpx2" | "aiohttp", config)` — returns the SDK's own async client |
 | Sync | `build_sync("httpx" | "httpx2" | "requests" | "urllib3", config)` — returns the SDK's own sync client |
 | Source | <https://github.com/bedrock-python/clientwright> |
@@ -43,8 +43,10 @@ telemetry schema. `build("httpx", config)` returns a genuine `httpx.AsyncClient`
 
 **It does not** define a request API of its own: you keep calling `client.get(...)` in
 your SDK's own vocabulary, and clientwright never wraps, subclasses or proxies the client.
-It does not parse configuration files, read environment variables, or ship a settings
-model. It does not pool, cache or deduplicate responses, does not do client-side load
+It does not parse configuration files or read environment variables itself:
+`clientwright[settings]` ships the config as pydantic models for a settings object of
+yours to nest, and `to_config()` is the one translation back. It does not pool, cache
+or deduplicate responses, does not do client-side load
 balancing (`TargetResolverProtocol` in `core.balancer` is an unimplemented seam), and does
 not hide the differences between SDKs — it *declares* them and reports what it could not
 apply.
@@ -345,6 +347,8 @@ task-local and thread-local, inherited by tasks started inside it, invisible to 
 | | `current_budget()` | the installed budget or `None` |
 | | `DeadlineBudgetProtocol` | structural: `remaining() -> float`, `expired() -> bool` |
 | `clientwright.contrib.dishka` | `ClientwrightProvider(adapter, config, deps=None)` | `Scope.APP` provider giving `ClientRuntime` and a `ClientHandle` closed in `finally` |
+| `clientwright.contrib.settings` | `BaseClientSettings` | `ClientConfig` as a pydantic `BaseModel` — nest it in your own `BaseSettings` (`env_nested_delimiter="__"`); `.to_config(service_name)` returns the `ClientConfig`. Never a `BaseSettings` itself, so a bare `BASE_URL` cannot reach a section |
+| | `BaseTimeoutSettings`, `BasePoolSettings`, `BaseRetrySettings`, `BaseCircuitBreakerSettings`, `BaseTlsSettings`, `BaseProxySettings`, `BaseObservabilitySettings` | the sub-configs, same field names and defaults, each with `.to_config()`. A knob left unset stays `UNSET`; `null` is the explicit "unbounded"; `retry: None = None` in a subclass disables a section; `url_masker` is not a field |
 | `clientwright.core.testing` | `OriginServer()` | in-process fault-injecting origin on an ephemeral localhost port |
 | | `RecordingMetrics()` | a `ClientMetricsProtocol` that remembers every record |
 | | `ManualClock(start=0.0)` | monotonic clock advanced by hand |
@@ -632,6 +636,7 @@ Fetch a page when the task is the one named beside it.
 | [Your first client](learn/first-client.md) | writing the very first integration end to end |
 | [Sync and async](learn/sync-and-async.md) | picking a flavor, or explaining hard vs soft deadlines |
 | [Configuration](guide/configuration.md) | the shape of `ClientConfig`, the defaults, `UNSET` |
+| [Environment settings](guide/settings.md) | loading `ClientConfig` from environment variables through the shipped pydantic models |
 | [Timeouts and deadlines](guide/timeouts.md) | total vs phase, caller overrides, deadline propagation |
 | [Retries](guide/retries.md) | the decision ladder, backoff, `Retry-After`, the budget |
 | [Circuit breaker](guide/circuit-breaker.md) | thresholds, half-open probes, choosing the key |
@@ -657,6 +662,6 @@ Fetch a page when the task is the one named beside it.
 | [API reference](reference/index.md) | what is covered by semver, and where each surface is documented |
 | [Core reference](reference/core.md) | an exact signature or docstring — rendered from source, read it as HTML |
 | [Adapters reference](reference/adapters.md) | the per-adapter export table, in full |
-| [Contrib reference](reference/contrib.md) | the deadline and dishka surfaces |
+| [Contrib reference](reference/contrib.md) | the deadline, dishka and settings surfaces |
 | [Testing reference](reference/testing.md) | the docstrings of the test instruments |
 | [Changelog](changelog.md) | what changed between versions |

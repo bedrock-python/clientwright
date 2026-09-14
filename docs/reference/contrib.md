@@ -8,6 +8,10 @@ copy_page: false
 
 ::: clientwright.contrib.deadline
 
+## Settings
+
+::: clientwright.contrib.settings
+
 ## Dishka
 
 `clientwright.contrib.dishka` imports `dishka` at module import time (by design —

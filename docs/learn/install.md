@@ -23,6 +23,7 @@ pip install clientwright[httpx]
 | `observability` | both of the above | shorthand for `[metrics,tracing]` |
 | `deadline` | `deadline-budget` | ambient request-budget propagation |
 | `dishka` | `dishka>=1.4` | the DI provider with a leak-free lifecycle |
+| `settings` | `pydantic>=2,<3`, `pydantic-settings>=2.3,<3` | `ClientConfig` from the environment, one pydantic model per sub-config |
 | `all` | everything above | kitchen sink for experiments |
 
 Extras combine the way you expect:

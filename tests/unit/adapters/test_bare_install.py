@@ -23,6 +23,8 @@ BLOCKED = (
     "opentelemetry",
     "dishka",
     "deadline_budget",
+    "pydantic",
+    "pydantic_settings",
 )
 
 BLOCKER = """
@@ -147,3 +149,17 @@ def test__zero_dep_surface__config_engine_and_testing_tools_work() -> None:
         """
     )
     assert output == "core usable"
+
+
+def test__settings_models_without_the_extra__fail_with_the_install_hint() -> None:
+    output = run_probe(
+        """
+        try:
+            import clientwright.contrib.settings
+        except ImportError as error:
+            print(error)
+        else:
+            print("NO ERROR")
+        """
+    )
+    assert "clientwright[settings]" in output
