@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.4.0...clientwright-v0.4.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* client_config_from_settings passes a BaseClientSettings through to to_config ([fc3af5e](https://github.com/bedrock-python/clientwright/commit/fc3af5e21821c8c506f10c43733aa4d66c563c39)), closes [#38](https://github.com/bedrock-python/clientwright/issues/38)
+
 ## [0.4.0](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.3.0...clientwright-v0.4.0) (2026-09-14)
 
 
