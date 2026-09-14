@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.3.0...clientwright-v0.4.0) (2026-09-14)
+
+
+### Features
+
+* component= and client_type= on ClientwrightProvider, and the circuit-state gauge on its runtime ([0ac6cdf](https://github.com/bedrock-python/clientwright/commit/0ac6cdfd179e1e5bd57ba3d4a49c95892cf6d844)), closes [#35](https://github.com/bedrock-python/clientwright/issues/35)
+
 ## [0.3.0](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.2.2...clientwright-v0.3.0) (2026-09-14)
 
 
