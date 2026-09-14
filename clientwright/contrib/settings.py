@@ -255,7 +255,12 @@ class BaseClientSettings(BaseModel):
     fields is set.
     """
 
-    base_url: str | None = Field(default=None, pattern=r"^https?://", description="Origin every relative URL joins")
+    base_url: str | None = Field(
+        default=None,
+        pattern=r"^https?://",
+        description="Origin every relative URL joins; unset means absolute URLs per call, "
+        "the only mode the requests and urllib3 adapters support",
+    )
     timeout: BaseTimeoutSettings = Field(default_factory=BaseTimeoutSettings)
     pool: BasePoolSettings = Field(default_factory=BasePoolSettings)
     retry: BaseRetrySettings | None = Field(default_factory=BaseRetrySettings)
