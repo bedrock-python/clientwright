@@ -117,10 +117,25 @@ must be positive, `retry.max_attempts >= 1`, `proxy.url` and `proxy.from_env` ar
 exclusive — so a bad value fails where the deployment set it, not three layers later.
 The dataclass validates once more in `to_config()`, so nothing gets past both.
 
-## Without pydantic
+## Which route
 
-`ClientSettingsProtocol` and `client_config_from_settings(settings, service_name)`
-accept any object with the flat, legacy attribute names (`timeout_seconds`,
-`enable_http2`, a four-field `retry`, a three-field `circuit_breaker`) — no base
-class and no extra required. Keep it for a service that already carries a settings
-model of that shape; write new code against the models above.
+Two calls build a `ClientConfig` from settings, and both are exported from the package
+root:
+
+- **`settings.warehouse.to_config("warehouse")`** for the shipped models above — the
+  route for new code and for any service whose environment uses the nested sections.
+- **`client_config_from_settings(settings.warehouse_api, "orders")`** for a settings
+  model of your own with the flat, legacy attribute names — `timeout_seconds`,
+  `enable_http2`, a four-field `retry` with `backoff_multiplier`, a three-field
+  `circuit_breaker`; anything satisfying `ClientSettingsProtocol`, no base class and
+  no extra required. It exists for a service that has not moved, and the flat shape is
+  not changing.
+
+The two are not the same translation: the flat converter maps timeouts, pool size,
+HTTP/2, `verify`, retry, breaker and the observability switches, and nothing else.
+Handed a `BaseClientSettings` — structurally, anything with `to_config(service_name)`,
+`SupportsToConfig` — `client_config_from_settings` returns
+`settings.to_config(service_name)` as is, so the mistaken call builds the config
+`to_config` would have built, pool, TLS, proxy, headers, redirects and observability
+included, rather than failing on the one retry field the two shapes spell differently
+or quietly running on defaults for every nested section.

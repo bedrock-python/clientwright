@@ -100,7 +100,10 @@ The sections are plain `BaseModel`s, reachable only through your settings, so a 
 [Environment settings](settings.md).
 
 Without pydantic, anything that structurally matches `ClientSettingsProtocol` — the
-flat, legacy attribute names — goes through `client_config_from_settings`:
+flat, legacy attribute names — goes through `client_config_from_settings`. That is the
+route for a service that has not moved to the models; handed a `BaseClientSettings` it
+passes through to `to_config`, and [Which route](settings.md#which-route) says which
+to call when:
 
 ```python
 from clientwright import client_config_from_settings

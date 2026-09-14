@@ -55,6 +55,7 @@ from .core.contracts import (
     MaskerProtocol,
     RetrySettingsProtocol,
     SpanProtocol,
+    SupportsToConfig,
     TracerProtocol,
 )
 from .core.contracts.adapter import default_deps
@@ -158,6 +159,7 @@ __all__ = [
     "SeamGranularity",
     "SpanProtocol",
     "Support",
+    "SupportsToConfig",
     "TimeoutConfig",
     "TlsConfig",
     "TooManyRedirectsError",

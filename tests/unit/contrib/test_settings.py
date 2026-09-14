@@ -27,6 +27,7 @@ from clientwright import (
     TlsConfig,
     UnsupportedPolicy,
     build_sync,
+    client_config_from_settings,
 )
 from clientwright.contrib import settings as settings_module
 from clientwright.contrib.settings import (
@@ -201,6 +202,27 @@ def test__bad_values__fail_at_load_with_the_field_path() -> None:
         BaseRetrySettings(max_attempts=0)
     with pytest.raises(ValidationError, match="mutually exclusive"):
         BaseProxySettings(url="http://proxy:3128", from_env=True)
+
+
+# --- the legacy converter ---
+
+
+def test__the_legacy_converter__passes_a_base_client_settings_through_to_to_config() -> None:
+    settings = BaseClientSettings(
+        base_url="https://auth.example.com",
+        pool={"max_connections": 7},
+        retry={"multiplier": 3.0},
+        tls={"verify": False},
+        proxy={"url": "http://proxy:3128"},
+    )
+
+    config = client_config_from_settings(settings, "auth-orchestrator")
+
+    assert config == settings.to_config("auth-orchestrator")
+    assert config.pool.max_connections == 7
+    assert config.retry is not None and config.retry.multiplier == 3.0
+    assert config.tls == TlsConfig(verify=False)
+    assert config.proxy == ProxyConfig(url="http://proxy:3128")
 
 
 def test__a_config_from_settings__builds_the_native_client() -> None:
