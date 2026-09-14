@@ -127,6 +127,9 @@ retry traffic by default), body replayability and the remaining deadline.
 `AdapterDeps(runtime=...)` - otherwise breaker state dies with every request.
 With `clientwright[dishka]`, `contrib.dishka.ClientwrightProvider` does both:
 APP-scope runtime and a generator provide that closes the client in `finally`.
+Several upstreams in one container are Dishka components — one
+`ClientwrightProvider("httpx", config, component="github-api", client_type=httpx.AsyncClient)`
+per upstream, injected as `Annotated[httpx.AsyncClient, FromComponent("github-api")]`.
 
 ## Deadline budgets
 
