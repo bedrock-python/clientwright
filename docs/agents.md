@@ -346,7 +346,7 @@ task-local and thread-local, inherited by tasks started inside it, invisible to 
 | | `use_budget(budget)` | context manager installing a budget; `use_budget(None)` detaches |
 | | `current_budget()` | the installed budget or `None` |
 | | `DeadlineBudgetProtocol` | structural: `remaining() -> float`, `expired() -> bool` |
-| `clientwright.contrib.dishka` | `ClientwrightProvider(adapter, config, deps=None)` | `Scope.APP` provider giving `ClientRuntime` and a `ClientHandle` closed in `finally` |
+| `clientwright.contrib.dishka` | `ClientwrightProvider(adapter, config, deps=None, *, component=None, client_type=None)` | `Scope.APP` provider giving `ClientRuntime` (circuit-state listener wired), a `ClientHandle` closed in `finally`, and the native client under `client_type`; `component` is one per upstream, resolved with `FromComponent(...)` / `component=` |
 | `clientwright.contrib.settings` | `BaseClientSettings` | `ClientConfig` as a pydantic `BaseModel` — nest it in your own `BaseSettings` (`env_nested_delimiter="__"`); `.to_config(service_name)` returns the `ClientConfig`. Never a `BaseSettings` itself, so a bare `BASE_URL` cannot reach a section |
 | | `BaseTimeoutSettings`, `BasePoolSettings`, `BaseRetrySettings`, `BaseCircuitBreakerSettings`, `BaseTlsSettings`, `BaseProxySettings`, `BaseObservabilitySettings` | the sub-configs, same field names and defaults, each with `.to_config()`. A knob left unset stays `UNSET`; `null` is the explicit "unbounded"; `retry: None = None` in a subclass disables a section; `url_masker` is not a field |
 | `clientwright.core.testing` | `OriginServer()` | in-process fault-injecting origin on an ephemeral localhost port |
@@ -371,7 +371,7 @@ Metric names and label sets are a frozen wire contract in
 | `http_client_attempts_total` | counter | once per **physical attempt** (not under `RetryMode.DELEGATED`) |
 | `http_client_attempt_duration_seconds` | histogram | same |
 | `http_client_inflight` | gauge | ±1 around each logical call |
-| `http_client_circuit_state` | gauge | on a breaker transition, **only when the adapter built the runtime** |
+| `http_client_circuit_state` | gauge | on a breaker transition, **only when the adapter or `ClientwrightProvider` built the runtime** |
 | `http_client_redirect_hops_total` | counter | per followed hop |
 | `http_client_retry_skipped_total` | counter | `reason=method|non_replayable|deadline|budget` |
 | `http_client_uninstrumented_calls_total` | counter | aiohttp only: a request that bypassed the middleware |
@@ -435,9 +435,9 @@ What each one will not do:
    the per-origin limiters. Build it once, share it through `AdapterDeps(runtime=...)`
    across request-scoped clients. A runtime per request is a breaker with no memory.
 2. **A runtime you build yourself has no circuit-state gauge.** The
-   `http_client_circuit_state` listener is wired only when the *adapter* builds the runtime.
-   Passing `deps.runtime` — including through `ClientwrightProvider` — keeps the breaker
-   working and loses that one gauge.
+   `http_client_circuit_state` listener is wired when the *adapter* or `ClientwrightProvider`
+   builds the runtime. Passing `deps.runtime` keeps the breaker working and loses that one
+   gauge, unless you built it with `ClientRuntime.for_config(config, circuit_listener=...)`.
 3. **`UNSET` is not `None`.** `UNSET` defers to the adapter's native default and says so in
    the report; `None` means explicitly unbounded. Both differ from a number.
 4. **`retryable_kinds` cannot retry a status.** The policy checks `retryable_status` first,
@@ -647,7 +647,7 @@ Fetch a page when the task is the one named beside it.
 | [Proxies and TLS](guide/proxies-tls.md) | mTLS, private CAs, explicit and environment proxies |
 | [Native passthrough](guide/native-options.md) | a knob `ClientConfig` does not cover |
 | [Capability honesty](guide/capabilities.md) | reading a report, comparing adapters before a migration |
-| [Dependency injection](guide/dishka.md) | wiring the runtime and the client lifecycle in a container |
+| [Dependency injection](guide/dishka.md) | wiring the runtime and the client lifecycle in a container, one component per upstream |
 | [Deadline budgets](guide/deadline-budget.md) | propagating the inbound request's remaining time |
 | [Testing your service](guide/testing.md) | `OriginServer`, `RecordingMetrics`, what to mock instead |
 | [Choosing an adapter](adapters/index.md) | picking one, or planning a swap |

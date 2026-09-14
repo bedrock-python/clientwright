@@ -65,3 +65,45 @@ async def test__two_container_generations__breaker_state_lives_in_the_runtime(or
         await rebuilt.client.get("/status/500")  # rejected locally: state survived the rebuild
     assert origin.request_count("/status/500") == 1
     await second.close()
+
+
+async def test__two_components__each_upstream_has_its_own_breaker_and_the_trip_reaches_metrics(
+    origin: OriginServer,
+) -> None:
+    # The reporter's shape: two upstreams in one container, each on its own
+    # runtime, each closed with the container - and the tripped breaker is
+    # exported although the provider, not the adapter, built the runtime.
+    metrics = RecordingMetrics()
+    deps = AdapterDeps(metrics=metrics)
+
+    def config(service: str) -> ClientConfig:
+        return ClientConfig(
+            service_name=service,
+            base_url=origin.url,
+            retry=None,
+            circuit_breaker=CircuitBreakerConfig(fail_threshold=1, recovery_timeout=60.0),
+        )
+
+    container = make_async_container(
+        ClientwrightProvider(
+            "httpx", config("github-oauth"), deps, component="github-oauth", client_type=httpx.AsyncClient
+        ),
+        ClientwrightProvider(
+            "httpx", config("github-api"), deps, component="github-api", client_type=httpx.AsyncClient
+        ),
+    )
+    login = await container.get(httpx.AsyncClient, component="github-oauth")
+    api = await container.get(httpx.AsyncClient, component="github-api")
+    assert login is not api
+
+    trip = await api.get("/status/500")
+    assert trip.status_code == 500  # one 5xx signal arms github-api's breaker
+    with pytest.raises(httpx.HTTPError):
+        await api.get("/status/500")  # rejected locally
+    assert (await login.get("/status/500")).status_code == 500  # github-oauth's breaker is its own
+    assert origin.request_count("/status/500") == 2
+    assert [record["state"] for record in metrics.circuit_states] == ["open", "open"]
+
+    await container.close()
+    assert login.is_closed
+    assert api.is_closed

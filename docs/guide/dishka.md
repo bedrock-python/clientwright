@@ -27,8 +27,7 @@ container = make_async_container(
 )
 ```
 
-Resolve the handle (or alias the client type in your own provider for ergonomic
-injection):
+Resolve the handle:
 
 ```python
 from typing import Any
@@ -41,9 +40,60 @@ handle = await container.get(ClientHandle[Any])
 client: httpx.AsyncClient = handle.client
 ```
 
+Or ask for the client itself. `client_type=` makes the provider also provide
+the native client under that type — the same object the handle holds — which
+is what an injection site usually wants:
+
+```python
+container = make_async_container(
+    ClientwrightProvider("httpx", config, client_type=httpx.AsyncClient),
+)
+client = await container.get(httpx.AsyncClient)
+```
+
 The provider is `Scope.APP`: one runtime, one client, built once. The client is
 yielded from a generator provide whose `finally` calls `aclose()` — closing the
-container closes the client, deterministically.
+container closes the client, deterministically. A request scope opening and
+closing does not touch it; nothing is parked on a request-scoped exit stack.
+
+## Several upstreams
+
+One provider serves one upstream. A service with several registers one provider
+per upstream, each in its own Dishka component, and names the component at the
+injection site:
+
+```python
+from typing import Annotated
+
+import httpx
+from dishka import FromComponent, make_async_container
+
+from clientwright.contrib.dishka import ClientwrightProvider
+
+container = make_async_container(
+    ClientwrightProvider("httpx", login_config, component="github-oauth", client_type=httpx.AsyncClient),
+    ClientwrightProvider("httpx", api_config, component="github-api", client_type=httpx.AsyncClient),
+)
+
+
+class GitHubOAuthProvider:
+    def __init__(
+        self,
+        login_client: Annotated[httpx.AsyncClient, FromComponent("github-oauth")],
+        api_client: Annotated[httpx.AsyncClient, FromComponent("github-api")],
+    ) -> None: ...
+
+
+api = await container.get(httpx.AsyncClient, component="github-api")
+```
+
+Dishka resolves a component's dependencies inside that component, so each
+provider's client is built on the runtime of its own component: two upstreams
+are two breakers, two budgets, two clients, each closed when the container
+closes. The cost is that every injection site names the upstream —
+`FromComponent("github-api")` or `component="github-api"` — the same trade-off
+`grpc_client_kit.dishka` makes. A single upstream stays in the default
+component and needs none of this.
 
 ## Sharing a runtime across rebuilds
 
@@ -62,22 +112,16 @@ container = make_async_container(ClientwrightProvider("httpx", config, deps))
 An upstream that was failing before the rebuild is still remembered as failing
 after it — which is the entire point of a breaker.
 
-## Several upstreams
+## The circuit-state gauge
 
-One provider serves one upstream. For several, instantiate one provider per
-upstream and give each a typed alias so injection sites stay readable:
-
-```python
-from dishka import Provider, Scope, provide
-
-
-class WarehouseClient(Provider):
-    scope = Scope.APP
-
-    @provide
-    def client(self, handle: ClientHandle[Any]) -> httpx.AsyncClient:
-        return handle.client
-```
+An adapter wires the [`http_client_circuit_state`](observability.md#the-metric-families)
+gauge to the runtime it builds. The provider builds the runtime, so it does the
+same wiring: with `AdapterDeps(metrics=...)` and `observability.metrics` on, a
+breaker transition on a provider-built runtime reaches the gauge exactly as it
+does with `build()`. The one runtime that carries no listener is one you built
+yourself and passed through `AdapterDeps(runtime=...)` — it is handed back as it
+came, so give `ClientRuntime.for_config(config, circuit_listener=...)` a
+listener that records into your metrics sink if you want the gauge there too.
 
 ## Without dishka
 
