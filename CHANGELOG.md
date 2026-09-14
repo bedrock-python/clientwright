@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.2.2...clientwright-v0.3.0) (2026-09-14)
+
+
+### Features
+
+* pydantic settings models for ClientConfig behind the settings extra ([3c5006f](https://github.com/bedrock-python/clientwright/commit/3c5006f3b61e50266d6f266ea1e997dbc80d5535))
+
 ## [0.2.2](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.2.1...clientwright-v0.2.2) (2026-09-06)
 
 
