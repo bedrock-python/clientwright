@@ -4,6 +4,12 @@ Services keep their own settings models (pydantic or otherwise); anything with
 these read-only properties satisfies the contract - the org convention set by
 grpc-client-kit. ``client_config_from_settings`` converts the structural shape
 into a ``ClientConfig``.
+
+This is the flat, legacy shape. The shipped models in
+``clientwright.contrib.settings`` are the nested one and carry their own
+translation, ``BaseClientSettings.to_config(service_name)``; the converter
+passes anything with a ``to_config`` through to it, so either call builds
+the same config.
 """
 
 from __future__ import annotations
@@ -50,7 +56,12 @@ class CircuitBreakerSettingsProtocol(Protocol):
 
 @runtime_checkable
 class ClientSettingsProtocol(Protocol):
-    """Mirror of the legacy ``RestClientSettingsProtocol`` reachable surface."""
+    """Mirror of the legacy ``RestClientSettingsProtocol`` reachable surface.
+
+    Flat names for a settings model of your own. The shipped nested models
+    (``clientwright.contrib.settings.BaseClientSettings``) do not satisfy this
+    protocol; they carry ``to_config(service_name)`` instead.
+    """
 
     @property
     def base_url(self) -> str: ...
@@ -89,8 +100,26 @@ class ClientSettingsProtocol(Protocol):
     def circuit_breaker(self) -> CircuitBreakerSettingsProtocol | None: ...
 
 
-def client_config_from_settings(settings: ClientSettingsProtocol, service_name: str) -> ClientConfig:
-    """Build a ClientConfig from the structural settings shape used by services."""
+@runtime_checkable
+class SupportsToConfig(Protocol):
+    """Settings that build their own ``ClientConfig`` - the shape of ``BaseClientSettings``."""
+
+    def to_config(self, service_name: str) -> ClientConfig: ...
+
+
+def client_config_from_settings(settings: ClientSettingsProtocol | SupportsToConfig, service_name: str) -> ClientConfig:
+    """Build a ClientConfig from the structural settings shape used by services.
+
+    For a settings object that builds its own config - the shipped
+    ``clientwright.contrib.settings.BaseClientSettings`` - this is
+    ``settings.to_config(service_name)``, and that is what it returns: the
+    nested sections (pool, tls, proxy, headers, redirects, observability, ...)
+    all reach the config. Call ``to_config`` directly where you can; the flat
+    ``ClientSettingsProtocol`` route is for a model of your own that predates
+    the shipped ones.
+    """
+    if isinstance(settings, SupportsToConfig):
+        return settings.to_config(service_name)
     retry_settings = settings.retry
     retry = (
         RetryConfig(
@@ -136,5 +165,6 @@ __all__ = [
     "CircuitBreakerSettingsProtocol",
     "ClientSettingsProtocol",
     "RetrySettingsProtocol",
+    "SupportsToConfig",
     "client_config_from_settings",
 ]

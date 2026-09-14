@@ -15,6 +15,7 @@ from .observability import TracerProtocol as TracerProtocol
 from .settings import CircuitBreakerSettingsProtocol as CircuitBreakerSettingsProtocol
 from .settings import ClientSettingsProtocol as ClientSettingsProtocol
 from .settings import RetrySettingsProtocol as RetrySettingsProtocol
+from .settings import SupportsToConfig as SupportsToConfig
 
 __all__ = [
     "AdapterDeps",
@@ -30,6 +31,7 @@ __all__ = [
     "ResponseView",
     "RetrySettingsProtocol",
     "SpanProtocol",
+    "SupportsToConfig",
     "SyncNormalizer",
     "TracerProtocol",
 ]

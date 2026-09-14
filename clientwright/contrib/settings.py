@@ -283,7 +283,11 @@ class BaseClientSettings(BaseModel):
     )
 
     def to_config(self, service_name: str) -> ClientConfig:
-        """The ``ClientConfig`` these settings describe, labelled ``service_name``."""
+        """The ``ClientConfig`` these settings describe, labelled ``service_name``.
+
+        The one translation for the shipped models. ``client_config_from_settings``
+        is the flat legacy route and passes a ``BaseClientSettings`` straight here.
+        """
         return ClientConfig(
             service_name=service_name,
             base_url=self.base_url,

@@ -32,3 +32,13 @@ def test__structural_settings__mapped_into_config() -> None:
     assert config.retry is not None and config.retry.max_attempts == 5
     assert config.circuit_breaker is None
     assert config.observability.tracing is False
+
+
+def test__settings_with_to_config__are_passed_through_to_it() -> None:
+    class Settings:
+        def to_config(self, service_name: str) -> clientwright.ClientConfig:
+            return clientwright.ClientConfig(service_name=service_name, base_url="https://api.example.com")
+
+    config = clientwright.client_config_from_settings(Settings(), "svc")
+    assert config == clientwright.ClientConfig(service_name="svc", base_url="https://api.example.com")
+    assert isinstance(Settings(), clientwright.SupportsToConfig)

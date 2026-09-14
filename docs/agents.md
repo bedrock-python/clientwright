@@ -167,7 +167,7 @@ Everything in this section is exported from `clientwright` unless the table says
 | `resolve_adapter` | `resolve_adapter(name)` | the adapter class; `UnknownAdapterError` if unknown |
 | `register_adapter` | `register_adapter(name, "module.path:Class", "module.path:CAPABILITIES")` | `None` |
 | `capabilities_matrix` | `capabilities_matrix()` | `dict[str, AdapterCapabilities]`, extras-free |
-| `client_config_from_settings` | `client_config_from_settings(settings, service_name)` | `ClientConfig` |
+| `client_config_from_settings` | `client_config_from_settings(settings, service_name)` | `ClientConfig` from the flat legacy `ClientSettingsProtocol` shape; a `BaseClientSettings` — anything with `to_config(service_name)`, `SupportsToConfig` — is passed through to its own `to_config` |
 | `is_set` | `is_set(value)` | `False` only for `UNSET` |
 
 `build` and its siblings are typed `Any` on purpose: the core cannot name
@@ -347,7 +347,7 @@ task-local and thread-local, inherited by tasks started inside it, invisible to 
 | | `current_budget()` | the installed budget or `None` |
 | | `DeadlineBudgetProtocol` | structural: `remaining() -> float`, `expired() -> bool` |
 | `clientwright.contrib.dishka` | `ClientwrightProvider(adapter, config, deps=None, *, component=None, client_type=None)` | `Scope.APP` provider giving `ClientRuntime` (circuit-state listener wired), a `ClientHandle` closed in `finally`, and the native client under `client_type`; `component` is one per upstream, resolved with `FromComponent(...)` / `component=` |
-| `clientwright.contrib.settings` | `BaseClientSettings` | `ClientConfig` as a pydantic `BaseModel` — nest it in your own `BaseSettings` (`env_nested_delimiter="__"`); `.to_config(service_name)` returns the `ClientConfig`. Never a `BaseSettings` itself, so a bare `BASE_URL` cannot reach a section |
+| `clientwright.contrib.settings` | `BaseClientSettings` | `ClientConfig` as a pydantic `BaseModel` — nest it in your own `BaseSettings` (`env_nested_delimiter="__"`); `.to_config(service_name)` returns the `ClientConfig` and is the route for these models (`client_config_from_settings` is the flat legacy one). Never a `BaseSettings` itself, so a bare `BASE_URL` cannot reach a section |
 | | `BaseTimeoutSettings`, `BasePoolSettings`, `BaseRetrySettings`, `BaseCircuitBreakerSettings`, `BaseTlsSettings`, `BaseProxySettings`, `BaseObservabilitySettings` | the sub-configs, same field names and defaults, each with `.to_config()`. A knob left unset stays `UNSET`; `null` is the explicit "unbounded"; `retry: None = None` in a subclass disables a section; `url_masker` is not a field |
 | `clientwright.core.testing` | `OriginServer()` | in-process fault-injecting origin on an ephemeral localhost port |
 | | `RecordingMetrics()` | a `ClientMetricsProtocol` that remembers every record |
@@ -597,6 +597,17 @@ handle = build_sync_handle(
     ClientConfig(service_name="reports", on_unsupported=UnsupportedPolicy.STRICT),
 )
 assert not handle.report.has_issues
+```
+
+```python
+# WRONG - the flat legacy converter on the shipped models; it passes through to to_config,
+# but the converter is the route for a flat settings model of your own, not for these
+from clientwright import client_config_from_settings
+
+config = client_config_from_settings(settings.warehouse, "warehouse")
+
+# RIGHT - the shipped models carry their own translation
+config = settings.warehouse.to_config("warehouse")
 ```
 
 ## Errors
