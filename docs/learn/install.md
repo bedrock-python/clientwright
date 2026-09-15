@@ -24,6 +24,7 @@ pip install clientwright[httpx]
 | `deadline` | `deadline-budget` | ambient request-budget propagation |
 | `dishka` | `dishka>=1.4` | the DI provider with a leak-free lifecycle |
 | `settings` | `pydantic>=2,<3`, `pydantic-settings>=2.3,<3` | `ClientConfig` from the environment, one pydantic model per sub-config |
+| `servicewright` | `servicewright>=0.1,<1` | servicewright's request context as outbound headers |
 | `all` | everything above | kitchen sink for experiments |
 
 Extras combine the way you expect:

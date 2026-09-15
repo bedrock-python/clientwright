@@ -37,6 +37,7 @@ nav = [
         { "Capability honesty" = "guide/capabilities.md" },
         { "Dependency injection" = "guide/dishka.md" },
         { "Deadline budgets" = "guide/deadline-budget.md" },
+        { "Context propagation" = "guide/context-propagation.md" },
         { "Testing your service" = "guide/testing.md" },
     ] },
     { "Adapters" = [

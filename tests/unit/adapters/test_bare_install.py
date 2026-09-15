@@ -25,6 +25,7 @@ BLOCKED = (
     "deadline_budget",
     "pydantic",
     "pydantic_settings",
+    "servicewright",
 )
 
 BLOCKER = """
@@ -163,3 +164,17 @@ def test__settings_models_without_the_extra__fail_with_the_install_hint() -> Non
         """
     )
     assert "clientwright[settings]" in output
+
+
+def test__contrib_servicewright_without_the_extra__fails_with_the_install_hint() -> None:
+    output = run_probe(
+        """
+        try:
+            import clientwright.contrib.servicewright
+        except ImportError as error:
+            print(error)
+        else:
+            print("NO ERROR")
+        """
+    )
+    assert "clientwright[servicewright]" in output

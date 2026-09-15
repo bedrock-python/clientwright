@@ -58,7 +58,8 @@ observability = ["clientwright[metrics,tracing]"]
 deadline = ["deadline-budget>=0.1,<1"]
 dishka = ["dishka>=1.4"]
 settings = ["pydantic>=2,<3", "pydantic-settings>=2.3,<3"]
-all = ["clientwright[httpx,httpx2,aiohttp,requests,urllib3,observability,deadline,dishka,settings]"]
+servicewright = ["servicewright>=0.1,<1"]
+all = ["clientwright[httpx,httpx2,aiohttp,requests,urllib3,observability,deadline,dishka,settings,servicewright]"]
 
 [dependency-groups]
 test = [
@@ -180,7 +181,7 @@ source_modules = ["clientwright.core"]
 forbidden_modules = [
     "httpx", "httpx2", "aiohttp", "requests", "urllib3", "niquests",
     "tornado", "aiosonic", "pydantic", "dishka", "prometheus_client",
-    "opentelemetry", "structlog", "sentry_sdk",
+    "opentelemetry", "structlog", "sentry_sdk", "servicewright",
 ]
 
 # _httpx_shared is deliberately OUTSIDE this list: it is the one sanctioned
