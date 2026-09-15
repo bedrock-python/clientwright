@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.4.1...clientwright-v0.5.0) (2026-09-15)
+
+
+### Features
+
+* clientwright.contrib.servicewright behind a [servicewright] extra ([777c5f3](https://github.com/bedrock-python/clientwright/commit/777c5f3d0fb3cf35f2c3d08ede87058fa022b4f2)), closes [#41](https://github.com/bedrock-python/clientwright/issues/41)
+
 ## [0.4.1](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.4.0...clientwright-v0.4.1) (2026-09-14)
 
 
