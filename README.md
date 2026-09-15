@@ -149,6 +149,17 @@ with use_budget(BudgetContext.create(total_seconds=5.0)):
     await client.get("/users")  # runs with what is left of those 5 seconds
 ```
 
+## Request context
+
+With `clientwright[servicewright]`, the ids servicewright bound for the unit of
+work being served travel to the upstream as headers:
+
+```python
+from clientwright.contrib.servicewright import servicewright_headers
+
+deps = AdapterDeps(header_providers=servicewright_headers())  # x-request-id, x-user-id, ...
+```
+
 ## From the environment
 
 With `clientwright[settings]`, `ClientConfig` and every sub-config exist as pydantic

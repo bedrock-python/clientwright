@@ -23,6 +23,9 @@ deps = AdapterDeps(
 client = build("httpx", ClientConfig(service_name="orders"), deps)
 ```
 
+In a servicewright service the lambda is `servicewright_headers()` from
+`clientwright[servicewright]` — see [Context propagation](context-propagation.md).
+
 Both backends are optional protocols — `ClientMetricsProtocol` and
 `TracerProtocol` are structural, so plugging in a custom sink means implementing
 methods, not inheriting classes. The test double `RecordingMetrics` (see

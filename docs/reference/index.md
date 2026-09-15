@@ -7,7 +7,7 @@ Auto-generated from source docstrings. The prose lives in the
 |---|---|
 | [Core](core.md) | `build` / `build_sync` / `inspect`, `ClientConfig` and all sub-configs, the data model, errors, capabilities, plans and runtime |
 | [Adapters](adapters.md) | per-adapter public exports: per-call channels and dual-family errors |
-| [Contrib](contrib.md) | deadline-budget, dishka and pydantic settings integrations |
+| [Contrib](contrib.md) | deadline-budget, dishka, pydantic settings and servicewright integrations |
 | [Testing](testing.md) | `OriginServer`, `RecordingMetrics`, `ManualClock` |
 
 ## What is stable

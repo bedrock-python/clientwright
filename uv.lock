@@ -403,6 +403,7 @@ all = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "requests" },
+    { name = "servicewright" },
     { name = "urllib3" },
 ]
 deadline = [
@@ -426,6 +427,9 @@ observability = [
 ]
 requests = [
     { name = "requests" },
+]
+servicewright = [
+    { name = "servicewright" },
 ]
 settings = [
     { name = "pydantic" },
@@ -488,10 +492,12 @@ requires-dist = [
     { name = "pydantic-settings", marker = "extra == 'settings'", specifier = ">=2.3,<3" },
     { name = "requests", marker = "extra == 'all'", specifier = ">=2.32,<3" },
     { name = "requests", marker = "extra == 'requests'", specifier = ">=2.32,<3" },
+    { name = "servicewright", marker = "extra == 'all'", specifier = ">=0.1,<1" },
+    { name = "servicewright", marker = "extra == 'servicewright'", specifier = ">=0.1,<1" },
     { name = "urllib3", marker = "extra == 'all'", specifier = ">=2.2,<3" },
     { name = "urllib3", marker = "extra == 'urllib3'", specifier = ">=2.2,<3" },
 ]
-provides-extras = ["aiohttp", "all", "deadline", "dishka", "httpx", "httpx2", "metrics", "observability", "requests", "settings", "tracing", "urllib3"]
+provides-extras = ["aiohttp", "all", "deadline", "dishka", "httpx", "httpx2", "metrics", "observability", "requests", "servicewright", "settings", "tracing", "urllib3"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2038,6 +2044,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/5f/ea/7f9b938a63ece4bec677ad7f9f7fa02df3383db1949ed93a382441c09a87/ruff-0.16.7-py3-none-win32.whl", hash = "sha256:2ea3470fcebcbc5df2fb0c6f3b90333fa9084c534e0111c038fa4a6ab9f1c4b7", size = 10059082, upload-time = "2026-09-10T18:03:59.632Z" },
     { url = "https://files.pythonhosted.org/packages/39/11/480a6973a927aa653e1cead6a6416008640e03a99d05b34c0434b8c6c366/ruff-0.16.7-py3-none-win_amd64.whl", hash = "sha256:7ac26aca826e9e21d0f1cb25b54ac660760a9fdd094d3e4df9848232be98cfc6", size = 10593368, upload-time = "2026-09-10T18:04:01.999Z" },
     { url = "https://files.pythonhosted.org/packages/8b/4b/51327018d056f0dad2c2238f26d1fb0f53707a9d91b75dea6d1b3039f136/ruff-0.16.7-py3-none-win_arm64.whl", hash = "sha256:aab7f39e2c9df6c596216070f98eef1207b94f8516cca20c808826974971855b", size = 10412401, upload-time = "2026-09-10T18:04:04.098Z" },
+]
+
+[[package]]
+name = "servicewright"
+version = "0.13.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/04/2a/52c96b5950a473b83f6489d0a0ac829916ac32c44f0160733716a51614d0/servicewright-0.13.1.tar.gz", hash = "sha256:a92c9ac6258b80a6e3b52eca3fd1104afceb2d281906336b2f58828e066a3950", size = 124180, upload-time = "2026-09-15T12:30:18.379Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/0b/916537154ecff0bfb4deba5037248c03559cf5646aff8b77a9d3e1700443/servicewright-0.13.1-py3-none-any.whl", hash = "sha256:aa2a4bb3a0a09efc379beb60e444335c9cafc110ef80a5e3ac39c033bd38d32b", size = 182287, upload-time = "2026-09-15T12:30:16.874Z" },
 ]
 
 [[package]]

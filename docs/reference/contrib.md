@@ -12,6 +12,10 @@ copy_page: false
 
 ::: clientwright.contrib.settings
 
+## servicewright
+
+::: clientwright.contrib.servicewright
+
 ## Dishka
 
 `clientwright.contrib.dishka` imports `dishka` at module import time (by design —

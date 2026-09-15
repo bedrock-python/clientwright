@@ -8,7 +8,7 @@
 |---|---|
 | Package | `clientwright` on PyPI, import root `clientwright` |
 | Requires | Python 3.12+. The core has zero dependencies; every adapter needs its own SDK |
-| Install | `pip install "clientwright[httpx]"` · extras: `httpx`, `httpx2`, `aiohttp`, `requests`, `urllib3`, `metrics`, `tracing`, `observability`, `deadline`, `dishka`, `settings`, `all` |
+| Install | `pip install "clientwright[httpx]"` · extras: `httpx`, `httpx2`, `aiohttp`, `requests`, `urllib3`, `metrics`, `tracing`, `observability`, `deadline`, `dishka`, `settings`, `servicewright`, `all` |
 | Async | `build("httpx" | "httpx2" | "aiohttp", config)` — returns the SDK's own async client |
 | Sync | `build_sync("httpx" | "httpx2" | "requests" | "urllib3", config)` — returns the SDK's own sync client |
 | Source | <https://github.com/bedrock-python/clientwright> |
@@ -144,7 +144,7 @@ runtime = ClientRuntime.for_config(config)  # APP scope: build it ONCE
 deps = AdapterDeps(
     metrics=PrometheusClientMetrics(),  # clientwright[metrics]
     tracer=OpenTelemetryTracer(),  # clientwright[tracing]
-    header_providers=(lambda: {"X-Request-ID": "..."},),
+    header_providers=(lambda: {"X-Request-ID": "..."},),  # or servicewright_headers(), clientwright[servicewright]
     runtime=runtime,
 )
 client = build("httpx", config, deps)
@@ -349,6 +349,7 @@ task-local and thread-local, inherited by tasks started inside it, invisible to 
 | `clientwright.contrib.dishka` | `ClientwrightProvider(adapter, config, deps=None, *, component=None, client_type=None)` | `Scope.APP` provider giving `ClientRuntime` (circuit-state listener wired), a `ClientHandle` closed in `finally`, and the native client under `client_type`; `component` is one per upstream, resolved with `FromComponent(...)` / `component=` |
 | `clientwright.contrib.settings` | `BaseClientSettings` | `ClientConfig` as a pydantic `BaseModel` — nest it in your own `BaseSettings` (`env_nested_delimiter="__"`); `.to_config(service_name)` returns the `ClientConfig` and is the route for these models (`client_config_from_settings` is the flat legacy one). Never a `BaseSettings` itself, so a bare `BASE_URL` cannot reach a section |
 | | `BaseTimeoutSettings`, `BasePoolSettings`, `BaseRetrySettings`, `BaseCircuitBreakerSettings`, `BaseTlsSettings`, `BaseProxySettings`, `BaseObservabilitySettings` | the sub-configs, same field names and defaults, each with `.to_config()`. A knob left unset stays `UNSET`; `null` is the explicit "unbounded"; `retry: None = None` in a subclass disables a section; `url_masker` is not a field |
+| `clientwright.contrib.servicewright` | `servicewright_headers()` | `tuple[HeaderProvider, ...]` carrying servicewright's request context (`x-request-id`, `x-user-id`, `x-tenant-id`, `x-trace-id`) upstream; goes into `AdapterDeps(header_providers=...)` next to `AmbientDeadlineSource()` |
 | `clientwright.core.testing` | `OriginServer()` | in-process fault-injecting origin on an ephemeral localhost port |
 | | `RecordingMetrics()` | a `ClientMetricsProtocol` that remembers every record |
 | | `ManualClock(start=0.0)` | monotonic clock advanced by hand |
@@ -660,6 +661,7 @@ Fetch a page when the task is the one named beside it.
 | [Capability honesty](guide/capabilities.md) | reading a report, comparing adapters before a migration |
 | [Dependency injection](guide/dishka.md) | wiring the runtime and the client lifecycle in a container, one component per upstream |
 | [Deadline budgets](guide/deadline-budget.md) | propagating the inbound request's remaining time |
+| [Context propagation](guide/context-propagation.md) | carrying servicewright's request ids to the upstream |
 | [Testing your service](guide/testing.md) | `OriginServer`, `RecordingMetrics`, what to mock instead |
 | [Choosing an adapter](adapters/index.md) | picking one, or planning a swap |
 | [httpx](adapters/httpx.md) | the reference adapter's seam and quirks |
@@ -673,6 +675,6 @@ Fetch a page when the task is the one named beside it.
 | [API reference](reference/index.md) | what is covered by semver, and where each surface is documented |
 | [Core reference](reference/core.md) | an exact signature or docstring — rendered from source, read it as HTML |
 | [Adapters reference](reference/adapters.md) | the per-adapter export table, in full |
-| [Contrib reference](reference/contrib.md) | the deadline, dishka and settings surfaces |
+| [Contrib reference](reference/contrib.md) | the deadline, dishka, settings and servicewright surfaces |
 | [Testing reference](reference/testing.md) | the docstrings of the test instruments |
 | [Changelog](changelog.md) | what changed between versions |

@@ -28,6 +28,7 @@ SDK_ROOTS = frozenset(
         "deadline_budget",
         "pydantic",
         "pydantic_settings",
+        "servicewright",
     }
 )
 
