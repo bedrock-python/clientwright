@@ -11,10 +11,10 @@
 
 | Task | Command |
 |---|---|
-| Install dependencies | `uv sync --group dev --all-extras` (CONTRIBUTING.md, CI). `make install` runs `uv sync --group dev` without the extras: the tests that need an SDK are then skipped, and `make test` fails its coverage threshold. |
+| Install dependencies | `make install`: `uv sync --group dev --all-extras`, as in CONTRIBUTING.md and CI. Without the extras the tests that need an SDK are skipped, and `make test` fails its coverage threshold. |
 | Format | `make fmt`: `uv run ruff format .`, then `uv run ruff check --fix .` |
 | Lint and type-check | `make check`: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy clientwright`, `uv run lint-imports` (the import-linter contracts in `pyproject.toml`). CI's lint job runs the same four. |
-| Test | `make test`: the whole suite, `uv run pytest --cov=clientwright --cov-fail-under=97`. Narrower: `make test-unit` (`uv run pytest -m unit`) and `make test-integration` (`uv run pytest -m integration`). CI runs `uv run pytest -m unit --cov=clientwright --cov-fail-under=90` on Python 3.12 and 3.13, `uv run pytest -m integration`, the unit tests with no extra installed (`uv sync --group test`), and the requests and urllib3 tests with only those two extras. |
+| Test | `make test`: the whole suite, `uv run pytest --cov=clientwright --cov-fail-under=97`. Narrower: `make test-unit` (`uv run pytest -m unit`) and `make test-integration` (`uv run pytest -m integration`). CI runs `uv run pytest -m unit --cov=clientwright --cov-fail-under=90` on Python 3.12, 3.13 and 3.14, `uv run pytest -m integration`, the unit tests with no extra installed (`uv sync --group test`), and the requests and urllib3 tests with only those two extras. |
 | Run locally | A library: nothing to run. The docs: `make docs-serve`. |
 | Stop the local run | Ctrl+C in the terminal of `make docs-serve`. |
 
