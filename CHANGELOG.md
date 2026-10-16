@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.5.0...clientwright-v0.5.1) (2026-10-16)
+
+
+### Performance Improvements
+
+* import clientwright and capabilities_matrix() without loading asyncio ([#63](https://github.com/bedrock-python/clientwright/issues/63)) ([02a2827](https://github.com/bedrock-python/clientwright/commit/02a282774e89e8aad969a28f03235447dddbd998)), closes [#62](https://github.com/bedrock-python/clientwright/issues/62)
+
 ## [0.5.0](https://github.com/bedrock-python/clientwright/compare/clientwright-v0.4.1...clientwright-v0.5.0) (2026-09-15)
 
 
