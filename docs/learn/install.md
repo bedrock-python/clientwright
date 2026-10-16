@@ -40,7 +40,9 @@ pip install "clientwright[httpx,observability,deadline]"
     that is what lets the test suite and CI verify the core in complete isolation.
     Adapters load lazily: nothing touches `httpx` until you call
     `build("httpx", ...)`, and a missing extra fails with an install hint instead of
-    a bare `ImportError`.
+    a bare `ImportError`. Neither `import clientwright` nor `capabilities_matrix()`
+    loads `asyncio`, so a job that only builds `ClientConfig` and reads capabilities
+    starts quickly; asyncio loads when an async client first needs it.
 
 ## Version pinning
 

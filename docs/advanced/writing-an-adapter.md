@@ -64,7 +64,10 @@ CAPABILITIES = AdapterCapabilities(
 ```
 
 This module must import **without the SDK installed** — it is what
-`capabilities_matrix()` shows to users deciding whether to adopt you. Understate
+`capabilities_matrix()` shows to users deciding whether to adopt you. Keep it
+light, too: import only `clientwright.core.capabilities` and
+`clientwright.core.model`, not your transport or engine code, because the matrix
+imports every registered adapter's record. Understate
 rather than overstate: `dropped` with a reason beats a knob that silently does
 nothing. `emits` also covers what the engine itself surfaces through your seam:
 `total_timeout`, `circuit_open`, `cancelled` and, on an async adapter,

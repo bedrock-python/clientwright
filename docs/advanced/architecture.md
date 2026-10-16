@@ -26,7 +26,9 @@ Three import-linter contracts hold the shape: the core never imports adapters,
 the core imports nothing outside the stdlib, and adapters never import each
 other. (The httpx and httpx2 adapters share a private `_httpx_shared` module that
 is deliberately outside the independence contract — it is the *family's* core,
-SDK-agnostic by construction.)
+SDK-agnostic by construction. Their capability record sits next to it in
+`_httpx_capabilities`, so `capabilities_matrix()` loads neither the engines nor
+asyncio.)
 
 ## One call through the machine
 

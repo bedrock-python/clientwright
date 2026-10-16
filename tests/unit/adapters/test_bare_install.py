@@ -178,3 +178,31 @@ def test__contrib_servicewright_without_the_extra__fails_with_the_install_hint()
         """
     )
     assert "clientwright[servicewright]" in output
+
+
+def test__import_clientwright__does_not_import_asyncio() -> None:
+    output = run_probe(
+        """
+        import sys
+
+        import clientwright
+
+        print("asyncio loaded" if "asyncio" in sys.modules else "no asyncio")
+        """
+    )
+    assert output == "no asyncio"
+
+
+def test__config_and_capabilities_matrix__do_not_import_asyncio() -> None:
+    output = run_probe(
+        """
+        import sys
+
+        import clientwright
+
+        clientwright.ClientConfig(service_name="probe", base_url="https://example.com")
+        assert len(clientwright.capabilities_matrix()) == 5
+        print("asyncio loaded" if "asyncio" in sys.modules else "no asyncio")
+        """
+    )
+    assert output == "no asyncio"
