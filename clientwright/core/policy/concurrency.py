@@ -8,14 +8,22 @@ runtime may serve several loops over its lifetime (worker threads, sequential
 ``asyncio.run`` calls, test suites), and an ``asyncio.Semaphore`` binds to the
 loop of its first contended acquire. Per-loop state also dies with its loop,
 so slots consumed in a dead loop cannot shrink the limit forever.
+
+``asyncio`` is imported where a semaphore is first needed, not at module level:
+this module is on the path of ``import clientwright``, and asyncio (with ssl,
+socket and subprocess behind it) is the largest part of that import. Code that
+only builds configuration, or only sync clients, never pays for it.
 """
 
 from __future__ import annotations
 
-import asyncio
 import threading
 import weakref
 from types import TracebackType
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import asyncio
 
 
 class AsyncOriginLimiter:
@@ -29,6 +37,8 @@ class AsyncOriginLimiter:
         self._lock = threading.Lock()
 
     def _semaphore(self, origin: str) -> asyncio.Semaphore:
+        import asyncio  # noqa: PLC0415 - deferred off the `import clientwright` path, see the module docstring
+
         loop = asyncio.get_running_loop()
         with self._lock:
             per_origin = self._per_loop.get(loop)

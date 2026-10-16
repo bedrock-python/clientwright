@@ -185,8 +185,10 @@ forbidden_modules = [
     "opentelemetry", "structlog", "sentry_sdk", "servicewright",
 ]
 
-# _httpx_shared is deliberately OUTSIDE this list: it is the one sanctioned
-# sharing channel of the httpx family (httpx and httpx2 both import it).
+# _httpx_shared and _httpx_capabilities are deliberately OUTSIDE this list: they
+# are the one sanctioned sharing channel of the httpx family (httpx and httpx2
+# both import them). The capability record lives in its own module so that
+# capabilities_matrix() does not load the engines and asyncio.
 [[tool.importlinter.contracts]]
 name = "Adapters never depend on each other"
 type = "independence"
