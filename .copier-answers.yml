@@ -1,0 +1,13 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: d9d0a6f
+_src_path: gh:bedrock-python/python-library-template
+author_email: shalaevad.alexey@gmail.com
+author_name: Alexey Shalaev
+github_org: bedrock-python
+initial_version: 0.0.0
+package_name: clientwright
+project_description: 'HTTP client platform: one resilience and observability core
+    with adapters for httpx, aiohttp, requests, urllib3 and friends'
+project_name: clientwright
+project_slug: clientwright
+python_min_version: '3.12'
