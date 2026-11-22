@@ -2167,11 +2167,11 @@ wheels = [
 
 [[package]]
 name = "servicewright"
-version = "0.14.0"
+version = "0.14.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ca/24/758b82cfa13ffb845bd09d942412e41ea5f60b2f69b27c70408e78957284/servicewright-0.14.0.tar.gz", hash = "sha256:845c679de113d8613e51fa555bc636366019a319447641e24726f439d99914d5", size = 126237, upload-time = "2026-10-16T14:59:16.321Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/85/030a8ded3d8f0728e939ac23b2acf5e956c3cdcffcdcb9822e3fa4c64c12/servicewright-0.14.1.tar.gz", hash = "sha256:f33fd25f9805f40b3f2cc266ae6a8e95fb8382ce9b3757837c1879040578171f", size = 126412, upload-time = "2026-11-09T07:18:52.963Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/d5/efff6549d4e49541898311cbe36eefd29df600370a1d1fa6f01d915ba9e2/servicewright-0.14.0-py3-none-any.whl", hash = "sha256:566496795dbb884eaa4d6e8c3e59152039237db0fc3e13fdc30aaa232b9026f3", size = 184164, upload-time = "2026-10-16T14:59:14.965Z" },
+    { url = "https://files.pythonhosted.org/packages/83/ba/364bcb2ee1841b1d76e4473e51aa068da63339ed3663dc6553120e96349a/servicewright-0.14.1-py3-none-any.whl", hash = "sha256:23132b7fff3fd58c70e6440ef7d048605930179a8a88c468bc434f55d2ea23d0", size = 184223, upload-time = "2026-11-09T07:18:51.29Z" },
 ]
 
 [[package]]
